@@ -41,7 +41,7 @@ _TBD_
   - Could compute similarity to a given reference speaker, e.g. using a MaSaC speaker as the reference.
 - **Naturalness:**
   - Turn-based and conversation-based evaluations need to complement each other.
-  - UTMOS naturalness metric (0–5, higher is better) (Saeki et al., 2022).
+  - ~~UTMOS naturalness metric (0–5, higher is better) (Saeki et al., 2022).~~ **Replaced:** naturalness is judged by Hindi–English bilingual listeners (MOS / A-B preference). UTMOS and SQUIM are trained on English and unreliable for Hindi–English.
 - **Linguistic fidelity:** Hindi and English pronunciation accuracy, word preservation, and language-specific intelligibility (WER, etc.).
 - **Human preference:** ask Hindi–English bilingual listeners which sample sounds more like natural conversational code-switching.
 - **Understanding metrics:** evaluating a system's understanding of input speech as a sanity check.

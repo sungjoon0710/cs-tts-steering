@@ -33,7 +33,7 @@ Audio, model weights, and experiment outputs are not tracked in git; they live o
 - **Acoustic naturalness:** F0, speaking rate, pause placement, syllable duration near language switches, compared with reference speech
 - **Emotion similarity:** cosine similarity of emotion2vec-base embeddings between generated and ground-truth audio
 - **Prosody similarity:** AutoPCP utterance-level similarity; similarity to a reference MaSaC speaker
-- **Naturalness:** UTMOS (0–5), at both turn and conversation level
+- **Naturalness:** judged by Hindi–English bilingual listeners (MOS and A/B preference), at both turn and conversation level. Automatic MOS predictors (UTMOS, SQUIM) are not used because they are trained on English and are unreliable for Hindi–English speech.
 - **Linguistic fidelity:** Hindi/English pronunciation accuracy, word preservation, WER
 - **Human preference:** Hindi–English bilingual listeners judge which sample sounds more like natural conversational code-switching
 - **Understanding:** sanity checks such as perplexity or English-translation quality
