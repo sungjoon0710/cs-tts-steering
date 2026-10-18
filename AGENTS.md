@@ -26,18 +26,25 @@ Next: batched generation wrapper → curated ~100-utterance pilot set → pilot 
 ## 2. Access
 
 ### SSH (on your laptop)
-Add to `~/.ssh/config`:
+Team UNIs: `sp4050`, `aa6109`.
+
+Add to `~/.ssh/config`, replacing `<uni>` with your own UNI (e.g. `User aa6109`):
 ```
-Host kedi clac
-    HostName %h.cs.columbia.edu
+Host kedi
+    HostName kedi.cs.columbia.edu
     User <uni>
     IdentityFile ~/.ssh/id_ed25519
     ControlMaster auto
     ControlPath ~/.ssh/cm-%r@%h:%p
     ControlPersist 4h
     ServerAliveInterval 60
+
+Host clac
+    HostName clac.cs.columbia.edu
+    User <uni>
+    IdentityFile ~/.ssh/id_ed25519
 ```
-Then run `ssh-copy-id kedi` once (it asks for your CS password). After that, `ssh kedi` needs no password. Close the persistent connection with `ssh -O exit kedi`.
+Without the config, the equivalent is `ssh <uni>@kedi.cs.columbia.edu`. If you don't have a key yet, create one with `ssh-keygen -t ed25519`. Then run `ssh-copy-id kedi` once (it asks for your CS password). After that, `ssh kedi` needs no password. Close the persistent connection with `ssh -O exit kedi`.
 
 **Editing and listening:** VS Code → Remote-SSH → `kedi`. Open the repo or output folders there. `.wav` files play in VS Code's built-in preview. Right-click → *Download…* copies a file to your laptop.
 
