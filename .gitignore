@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# Data and outputs (keep directory structure)
+data/raw/*
+data/processed/*
+data/generated/*
+experiments/*
+!**/.gitkeep
+
+# Audio / model artifacts
+*.wav
+*.flac
+*.mp3
+*.pt
+*.pth
+*.safetensors
+*.ckpt
+*.npy
+
+# Logging
+wandb/
+runs/
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
