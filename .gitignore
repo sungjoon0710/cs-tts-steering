@@ -1,19 +1,10 @@
 # Python
 __pycache__/
 *.py[cod]
-*.egg-info/
 .venv/
-venv/
 .ipynb_checkpoints/
 
-# Data and outputs (keep directory structure)
-data/raw/*
-data/processed/*
-data/generated/*
-experiments/*
-!**/.gitkeep
-
-# Audio / model artifacts
+# Data / model artifacts (keep on /local/speech, not in git)
 *.wav
 *.flac
 *.mp3
@@ -22,12 +13,8 @@ experiments/*
 *.safetensors
 *.ckpt
 *.npy
-
-# Logging
 wandb/
-runs/
 
 # OS / editor
 .DS_Store
 .vscode/
-.idea/

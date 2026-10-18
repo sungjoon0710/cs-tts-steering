@@ -26,7 +26,7 @@ Building activation steering vectors for naturalistic Hindi–English code-switc
 | Positive examples | **MaSaC** (Bedi et al., 2021): Hindi–English code-mixed conversational corpus annotated for sarcasm and humor |
 | Neutral examples | Synthesized from MaSaC's human transcripts with an open-source TTS model (base OrpheusTTS or Kokoro-82M) |
 
-Raw and generated audio is not tracked in git (see [`data/README.md`](data/README.md)).
+Audio, model weights, and experiment outputs are not tracked in git; they live on the compute machine (see [Compute](#compute)).
 
 ## Evaluation
 
@@ -46,25 +46,20 @@ Raw and generated audio is not tracked in git (see [`data/README.md`](data/READM
 ## Repository layout
 
 ```
-configs/        experiment and model configs
-data/           raw/, processed/, generated/ audio + metadata (git-ignored)
-docs/           study design, literature notes
-experiments/    per-run outputs and logs
-notebooks/      exploratory analysis
-paper/          write-up and drafts
-results/        figures/ and tables/ for reporting
-scripts/        entry-point scripts (data prep, training, eval)
-src/
-  data/         MaSaC loading, neutral-example synthesis
-  steering/     CAA / BiPO steering-vector extraction and injection
-  tts/          TTS model wrappers
-  evaluation/   acoustic, prosody, emotion, naturalness, WER metrics
-tests/
+docs/       study design notes
+src/        library code (data loading, steering, TTS wrappers, metrics)
+scripts/    entry points (data prep, training, evaluation)
 ```
 
 ## Compute
 
-Experiments run on the Columbia CS speech-lab GPU machines (e.g. `kedi`: 2× L40 48GB, 2× RTX A5500 24GB).
+Developed and run on the Columbia CS speech-lab GPU machine `kedi` (2× L40 48GB, 2× RTX A5500 24GB). Data and outputs are kept outside the repo on kedi's local disk:
+
+```
+/local/speech/users/sp4050/
+  data/       MaSaC audio/transcripts, synthesized neutral examples
+  outputs/    steering vectors, generated audio, logs, results
+```
 
 ## References
 

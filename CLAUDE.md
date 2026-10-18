@@ -1,6 +1,8 @@
 # Naturalistic code-switching TTS research
 
-Local dir (Mac) is for notes/code; compute happens on Columbia CS speech-lab machines.
+Primary dev environment is `kedi` over SSH (repo cloned there); the Mac copy is secondary.
+Repo: github.com/sungjoon0710/cs-tts-steering (public). Layout: `docs/`, `src/`, `scripts/`.
+Data and outputs live outside the repo at `/local/speech/users/sp4050/{data,outputs}` on kedi.
 
 ## Access
 - `ssh kedi` (also `ssh clac`) — user `sp4050`, key auth via `~/.ssh/id_ed25519`, ControlMaster persists 4h.
