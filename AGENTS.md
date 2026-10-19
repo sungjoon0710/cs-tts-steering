@@ -124,6 +124,7 @@ uv venv $LOCAL_SP/envs/tts --python 3.11
 tts-env
 uv pip install torch==2.6.0 torchaudio==2.6.0 --index-url https://download.pytorch.org/whl/cu124
 uv pip install "transformers>=5" accelerate snac soundfile numpy pandas pyyaml huggingface_hub ipykernel nbclient
+uv pip install jiwer uroman praat-parselmouth tabulate   # scripts/evaluate.py
 
 # 4. Model weights (first accept the terms on both HF model pages while logged in, then create a read token)
 hf auth login
