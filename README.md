@@ -30,6 +30,13 @@ Audio, model weights, and experiment outputs are not tracked in git; they live o
 
 ## Evaluation
 
+The reproducible CPU evaluator, blinded pilot interface, metric definitions and
+private-data policy are documented in [docs/evaluation.md](docs/evaluation.md).
+`scripts/evaluate.py` is the upstream model-based evaluator;
+`scripts/pilot_evaluate.py` and `scripts/full_evaluate.py` reuse cached ASR without
+loading ASR/TTS models. Their automatic scores remain proxies pending human
+validation.
+
 - **Acoustic naturalness:** F0, speaking rate, pause placement, syllable duration near language switches, compared with reference speech
 - **Emotion similarity:** cosine similarity of emotion2vec-base embeddings between generated and ground-truth audio
 - **Prosody similarity:** AutoPCP utterance-level similarity; similarity to a reference MaSaC speaker

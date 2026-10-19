@@ -18,3 +18,22 @@ wandb/
 # OS / editor
 .DS_Store
 .vscode/
+
+# Private research runs, exports, human records and local GPT handoffs
+evaluation_runs/
+outputs/
+data/
+private/
+local_only/
+hf_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
+*.docx
+GPT_ANALYSIS_PACKET*.zip
+HANDOFF*.md
+/scripts/build_full_handoff.py
+/docs/EVALUATION_STATUS.md
+/docs/EVALUATION_IMPLEMENTATION.md
+/docs/EVALUATION_EXPLORATORY_REVIEW.md

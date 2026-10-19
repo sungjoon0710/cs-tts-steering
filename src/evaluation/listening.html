@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><title>Hindi–English speech listening pilot</title>
+<style>
+body{font:17px/1.5 system-ui,sans-serif;max-width:900px;margin:35px auto;padding:0 20px;background:#f6f7fa;color:#192333}
+section{background:white;padding:24px;border-radius:12px;margin:20px 0;border:1px solid #d9dfea}
+button,select,input,textarea{font:inherit;padding:9px;margin:5px;border:1px solid #9caabc;border-radius:6px}
+button{background:#194e8a;color:white;cursor:pointer}button:disabled{opacity:.45;cursor:default}
+textarea{display:block;width:90%;min-height:100px}audio{width:100%}.pair{display:grid;grid-template-columns:1fr 1fr;gap:25px}
+.error{color:#a21a27}#text{font-size:23px;white-space:pre-wrap}label{display:block}.muted{color:#536275}
+</style>
+<h1>Hindi–English speech listening pilot</h1>
+<p>Judge natural conversational delivery. A recognisable accent is not automatically an error. Keep playback volume comfortable and consistent.</p>
+<section id="enrollment"><h2>Start or resume</h2>
+<label>Pseudonymous listener ID <input id="listener" maxlength="40" placeholder="e.g. listener_01"></label>
+<label>Hindi proficiency <select id="hi"><option value="">Choose…</option><option>Fluent</option><option>Intermediate</option><option>Limited</option></select></label>
+<label>English proficiency <select id="en"><option value="">Choose…</option><option>Fluent</option><option>Intermediate</option><option>Limited</option></select></label>
+<label>Hinglish use/listening <select id="frequency"><option value="">Choose…</option><option>Daily</option><option>Weekly</option><option>Rarely</option></select></label>
+<label>Task <select id="mode"><option value="listen">Blinded paired listening</option><option value="transcribe">Manual transcription (research reviewer)</option><option value="review">Failure review (research reviewer)</option></select></label>
+<label><input type="checkbox" id="consent">I agree to save my pseudonymous responses locally for this research pilot.</label>
+<button id="start">Start</button></section>
+<section id="trial" hidden><p id="progress" class="muted"></p>
+<div id="pair" class="pair"><div><h2>Audio A</h2><audio id="audioA" controls preload="none"></audio></div><div><h2>Audio B</h2><audio id="audioB" controls preload="none"></audio></div></div>
+<div id="transcript" hidden><h2>Intended text</h2><p id="text"></p></div>
+<div id="primary"><h2>Which sounds more natural as conversational Hindi–English?</h2>
+<p>Listen to both clips fully. Choose A/B when one is better; use “both” when neither is preferred and both are acceptable/unacceptable.</p>
+<select id="naturalness"></select><button id="lock" disabled>Lock naturalness judgment</button></div>
+<div id="diagnostics" hidden><h2>Pronunciation of the intended Hindi and English words</h2><select id="pronunciation"></select>
+<h2>Hindi–English transition smoothness</h2><select id="smoothness"></select>
+<label>Optional artifact/error notes, identifying A or B<textarea id="notes"></textarea></label><button id="finish">Save and continue</button></div>
+<div id="transcription" hidden><h2>Transcribe exactly what you hear</h2><p>The intended text is hidden to reduce priming. Preserve Hindi/English words; do not translate. Mark incomplete/uncertain transcriptions for later review.</p>
+<textarea id="spoken"></textarea><label><input type="checkbox" id="complete">I am confident this transcription is complete (including silence if the field is empty).</label>
+<button id="saveTranscription">Save transcription</button></div></section>
+<section id="review" hidden><h2>Failure review</h2><p>Listen fully and check confirmed problems. Token-limit hits are warnings, not automatic runaway labels. Save only after inspecting the recording against its intended text.</p><div id="failureFlags"></div><textarea id="reviewNotes" placeholder="Evidence and uncertainty notes"></textarea><button id="saveReview">Confirm review and continue</button></section>
+<p id="message" role="status"></p>
+<script>
+const $=id=>document.getElementById(id); let listener='',mode='',trial=null,heard=new Set();
+const choices=[['','Choose…'],['a','A better'],['b','B better'],['both_acceptable','Both acceptable'],['both_unacceptable','Both unacceptable']];
+for(const id of ['naturalness','pronunciation','smoothness'])for(const [v,t] of choices){const o=document.createElement('option');o.value=v;o.textContent=t;$(id).append(o)}
+for(const [v,t]of [['not_applicable','Not applicable: no language switch'],['uncertain','Uncertain whether this is code-switched']]){const o=document.createElement('option');o.value=v;o.textContent=t;$('smoothness').append(o)}
+async function api(path,data){const r=await fetch(path,data?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}:{});const x=await r.json();if(!r.ok)throw Error(x.error||'Request failed');return x}
+function error(e){$('message').className='error';$('message').textContent=e.message}
+async function load(){heard=new Set();$('lock').disabled=true;$('message').textContent='';$('notes').value='';for(const id of ['naturalness','pronunciation','smoothness'])$(id).value='';
+trial=await api((mode==='listen'?'/api/trial':mode==='review'?'/api/review':'/api/transcription')+'?listener='+encodeURIComponent(listener));
+if(trial.done){$('trial').hidden=true;$('review').hidden=true;$('message').textContent='All assigned tasks are complete. Thank you.';return}
+$('trial').hidden=false;$('pair').style.gridTemplateColumns=mode==='listen'?'1fr 1fr':'1fr';$('audioB').parentElement.hidden=mode!=='listen';
+$('primary').hidden=mode!=='listen'||trial.phase!=='naturalness';$('diagnostics').hidden=mode!=='listen'||trial.phase!=='diagnostics';$('transcription').hidden=mode!=='transcribe';$('review').hidden=mode!=='review';
+$('transcript').hidden=!Object.hasOwn(trial,'transcript');$('text').textContent=trial.transcript||'';
+$('audioA').src=mode==='listen'?trial.audio_A:trial.audio;if(mode==='listen')$('audioB').src=trial.audio_B;
+$('progress').textContent=mode==='listen'?`${trial.completed+1} / ${trial.total} pairs`:`${trial.remaining} review tasks remaining`;
+if(mode==='review'){$('failureFlags').replaceChildren();for(const category of trial.failure_categories){const label=document.createElement('label'),input=document.createElement('input');input.type='checkbox';input.dataset.category=category;label.append(input,document.createTextNode(category.replaceAll('_',' ')));$('failureFlags').append(label)}$('reviewNotes').value=''}
+$('spoken').value='';$('complete').checked=false;
+}
+$('start').onclick=async()=>{try{listener=$('listener').value.trim();mode=$('mode').value;if(!($('hi').value&&$('en').value&&$('frequency').value))throw Error('Please select your language proficiency and Hinglish familiarity.');await api('/api/enroll',{listener_id:listener,profile:{consent:$('consent').checked,hindi_proficiency:$('hi').value,english_proficiency:$('en').value,hinglish_frequency:$('frequency').value}});$('enrollment').hidden=true;await load()}catch(e){error(e)}};
+for(const id of ['audioA','audioB'])$(id).onended=()=>{heard.add(id);$('lock').disabled=heard.size<2};
+$('lock').onclick=async()=>{try{await api('/api/naturalness',{listener_id:listener,trial_id:trial.trial_id,response:$('naturalness').value});await load()}catch(e){error(e)}};
+$('finish').onclick=async()=>{try{await api('/api/finish',{listener_id:listener,trial_id:trial.trial_id,pronunciation:$('pronunciation').value,smoothness:$('smoothness').value,notes:$('notes').value});await load()}catch(e){error(e)}};
+$('saveTranscription').onclick=async()=>{try{await api('/api/transcribe',{listener_id:listener,task_id:trial.task_id,transcript:$('spoken').value,complete:$('complete').checked});await load()}catch(e){error(e)}};
+$('saveReview').onclick=async()=>{try{const flags={};for(const input of $('failureFlags').querySelectorAll('input'))flags[input.dataset.category]=input.checked;await api('/api/review',{listener_id:listener,task_id:trial.task_id,flags,notes:$('reviewNotes').value});await load()}catch(e){error(e)}};
+</script></html>

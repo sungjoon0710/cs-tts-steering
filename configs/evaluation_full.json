@@ -1,0 +1,14 @@
+{
+  "protocol": "full-automatic-exploratory-v0.2",
+  "human_validation_required_for_automatic_execution": false,
+  "seed": 1234,
+  "bootstrap_repeats": 2000,
+  "egemaps": true,
+  "content_variants": ["raw_nfc", "hi-en-nfc-v1", "uroman_sensitivity"],
+  "near_silent_rms_dbfs_warning": -50,
+  "asr_deletion_fraction_warning": 0.25,
+  "asr_insertion_fraction_warning": 0.5,
+  "asr_repeated_trigram_fraction_warning": 0.25,
+  "excessive_duration_ratio_warning": 2.5,
+  "status": "provisional_and_exploratory; not a human naturalness evaluation"
+}
