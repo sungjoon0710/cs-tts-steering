@@ -93,3 +93,13 @@ This is reproducible by recorded versions/hashes but not hermetic: shared packag
 can change. Capture provenance per run; a future locked standalone environment
 would remove that dependency. Local/remote dependency versions can differ; perform
 numerical parity checks rather than assuming binary equivalence.
+
+## Additional automatic diagnostics
+
+The CPU-only execution statements above describe `full_evaluate.py` and
+`natural_distribution.py`. Separately approved learned-model entry points use
+their own run directories and budgets; they do not change the existing cached
+CPU measurements. See [EVALUATION_LEARNED.md](EVALUATION_LEARNED.md) for language
+POI recovery, second-ASR sensitivity, NISQA-TTS, within-voice embeddings and the
+isolated official TTSDS2 attempt. Run-specific metric registries remain beside
+private results, outside this public repository.

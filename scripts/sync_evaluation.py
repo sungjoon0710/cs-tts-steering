@@ -80,7 +80,7 @@ def main():
     p.add_argument('--release');p.add_argument('--run-id',default='baseline_full_20261019');p.add_argument('--destination',type=Path)
     p.add_argument('--source',type=Path);p.add_argument('--artifact-id',default='natural_reference_v2')
     p.add_argument('--baseline-run-id',default='baseline_full_20261019_v2')
-    p.add_argument('--include-reports',action='store_true',help='Also sync top-level MD/HTML/CSV/PNG; never WAV/model files')
+    p.add_argument('--include-reports',action='store_true',help='Also sync report MD/HTML/CSV/PNG and subdirectories; excludes GPT/HANDOFF files and audio/models')
     a=p.parse_args()
     if not re.fullmatch(r'[A-Za-z0-9_-]+',a.run_id):raise ValueError('Invalid run ID')
     if a.release is not None and not re.fullmatch('[0-9a-f]{20}',a.release):raise ValueError('Invalid release')
@@ -104,7 +104,9 @@ print(json.dumps({'release_id':m['release_id'],'files':len(m['sha256']),'remote_
     elif a.action=='research-push':
         if a.source is None:raise ValueError('--source required')
         suffixes=('.json','.jsonl','.md','.html','.csv','.png') if a.include_reports else ('.json','.jsonl')
-        files={p.name:p.read_bytes() for p in a.source.iterdir() if p.is_file() and p.suffix in suffixes}
+        source=private_directory(a.source)
+        paths=source.rglob('*') if a.include_reports else source.iterdir()
+        files={p.relative_to(source).as_posix():p.read_bytes() for p in paths if p.is_file() and not p.is_symlink() and source in p.resolve().parents and p.suffix in suffixes and not any(part.upper().startswith(('GPT_','HANDOFF')) for part in p.relative_to(source).parts)}
         manifest={'sha256':{k:digest(v) for k,v in files.items()},'artifact_id':a.artifact_id}
         buf=io.BytesIO()
         with zipfile.ZipFile(buf,'w',compression=zipfile.ZIP_DEFLATED) as z:

@@ -37,7 +37,19 @@ private-data policy are documented in [docs/evaluation.md](docs/evaluation.md).
 loading ASR/TTS models. Their automatic scores remain proxies pending human
 validation.
 
-- **Acoustic naturalness:** F0, speaking rate, pause placement, syllable duration near language switches, compared with reference speech
+The current automatic extension adds provisional corpus-derived language POI
+errors, recognizer sensitivity, NISQA-TTS predictions, within-voice speaker
+consistency, and a bounded official multilingual TTSDS2 workflow. See
+[method definitions and limitations](docs/EVALUATION_LEARNED.md). The per-run
+metric registry records implementation status and coverage beside private results.
+Predicted quality
+and acoustic distributions do not replace bilingual human judgments. Comparisons
+refer to model–voice configurations, with voice confounds retained.
+
+The following broader study-design directions include future work; they are not
+a list of completed or validated baseline measurements:
+
+- **Acoustic diagnostics:** F0, speaking rate, pause placement, syllable duration near language switches, compared with reference speech
 - **Emotion similarity:** cosine similarity of emotion2vec-base embeddings between generated and ground-truth audio
 - **Prosody similarity:** AutoPCP utterance-level similarity; similarity to a reference MaSaC speaker
 - **Naturalness:** judged by Hindi–English bilingual listeners (MOS and A/B preference), at both turn and conversation level. Automatic MOS predictors (UTMOS, SQUIM) are not used because they are trained on English and are unreliable for Hindi–English speech.
