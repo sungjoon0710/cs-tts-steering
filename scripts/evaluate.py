@@ -5,6 +5,8 @@ Reads <run>/<model>/generations.jsonl and the wavs, writes
     <run>/eval/metrics.csv      one row per clip
     <run>/eval/summary.csv      one row per model/voice
     <run>/eval/summary.md       same, as a markdown table
+    <run>/eval/paired_cer.csv   CER per line, one column per model/voice
+    <run>/eval/pairwise.md      head-to-head CER on shared lines for every pair of systems
 
 Metrics: CER/WER vs. input text (both romanized with uroman), approximate English-word
 survival, F0 median/range, speaking rate, pauses, edge silence, duration sanity, RTF,
@@ -228,6 +230,24 @@ def main():
     summ.round(3).to_csv(out_dir / "summary.csv", index=False)
     (out_dir / "summary.md").write_text(summ.round(3).to_markdown(index=False) + "\n", encoding="utf-8")
     print(summ.round(3).to_string(index=False))
+    compare(df, out_dir)
+
+
+def compare(df: pd.DataFrame, out_dir: Path) -> None:
+    """Paired CER across systems (model/voice) on the lines they share."""
+    df = df.assign(system=df.model + "/" + df.voice)
+    wide = df.pivot_table(index="line", columns="system", values="cer")
+    wide.round(4).to_csv(out_dir / "paired_cer.csv")
+    rows = []
+    for a, b in combinations(wide.columns, 2):
+        both = wide[[a, b]].dropna()
+        d = both[a] - both[b]
+        rows.append(dict(A=a, B=b, lines=len(both), A_better=int((d < 0).sum()), B_better=int((d > 0).sum()),
+                         ties=int((d == 0).sum()), median_cer_A=both[a].median(), median_cer_B=both[b].median(),
+                         median_diff=d.median()))
+    pw = pd.DataFrame(rows).round(3)
+    (out_dir / "pairwise.md").write_text(pw.to_markdown(index=False) + "\n", encoding="utf-8")
+    print(pw.to_string(index=False))
 
 
 if __name__ == "__main__":

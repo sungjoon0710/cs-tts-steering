@@ -108,7 +108,8 @@ class IndicSpeak:
 class OrpheusHindi:
     """canopylabs/3b-hi-ft-research_release: standard Orpheus prompt, stock SNAC decoder."""
 
-    name = "orpheus-hi"
+    name = "orpheus-hi-ft"
+    repo = "canopylabs/3b-hi-ft-research_release"
     decoding = dict(temperature=0.6, top_p=0.9, repetition_penalty=1.1)
     START_HUMAN, END_TEXT, END_HUMAN = 128259, 128009, 128260
     START_SPEECH, END_SPEECH = 128257, 128258
@@ -118,7 +119,7 @@ class OrpheusHindi:
         from transformers import AutoModelForCausalLM, AutoTokenizer
 
         self.device = device
-        snap = cached_snapshot("canopylabs/3b-hi-ft-research_release")
+        snap = cached_snapshot(self.repo)
         self.tok = AutoTokenizer.from_pretrained(snap)
         self.lm = AutoModelForCausalLM.from_pretrained(
             snap, dtype=torch.bfloat16, attn_implementation="sdpa").to(device).eval()
@@ -127,7 +128,7 @@ class OrpheusHindi:
     @torch.no_grad()
     def __call__(self, text: str, voice: str, seed: int):
         torch.manual_seed(seed)
-        body = f"{voice}: {text}" if voice else text
+        body = f"{voice}: {text}" if voice and voice != "none" else text
         prompt = [self.START_HUMAN] + self.tok(body).input_ids + [self.END_TEXT, self.END_HUMAN]
         max_new = token_budget(text)
         ids = torch.tensor([prompt], device=self.device)
@@ -143,4 +144,14 @@ class OrpheusHindi:
         return wav, _info(n_new, max_new, t0, wav)
 
 
-MODELS = {m.name: m for m in (IndicSpeak, OrpheusHindi)}
+class OrpheusHindiPretrained(OrpheusHindi):
+    """canopylabs/3b-hi-pretrain-research_release: Hindi base model, no named voices.
+
+    Use voice "none" (text-only prompt); the speaker is then whatever the model samples.
+    """
+
+    name = "orpheus-hi-pt"
+    repo = "canopylabs/3b-hi-pretrain-research_release"
+
+
+MODELS = {m.name: m for m in (IndicSpeak, OrpheusHindi, OrpheusHindiPretrained)}

@@ -13,7 +13,7 @@ Research summary: [`README.md`](README.md). Full study notes: [`docs/study_desig
 | Compute access | Columbia CS speech-lab machine **kedi** (also `clac`), key-based SSH. |
 | Repo | `github.com/sungjoon0710/cs-tts-steering` (**public**). Layout: `docs/`, `src/`, `scripts/`, `notebooks/`. |
 | Python env | uv + Python 3.11 venv on kedi's local disk; torch 2.6.0+cu124, transformers 5.x, snac. |
-| Model weights | Indic-Speak (`bodhan-ai/indic-speak`), Orpheus 3B Hindi (`canopylabs/3b-hi-ft-research_release`), SNAC 24 kHz decoder. All in a personal HF cache. |
+| Model weights | Indic-Speak (`bodhan-ai/indic-speak`), Orpheus 3B Hindi fine-tuned (`canopylabs/3b-hi-ft-research_release`, code name `orpheus-hi-ft`) and pretrained (`canopylabs/3b-hi-pretrain-research_release`, `orpheus-hi-pt`), SNAC 24 kHz decoder. All in a personal HF cache. |
 | MaSaC data | Not in the lab corpora. Cloned from the authors' GitHub (MSH-COMICS = original release; EDiReF-SemEval2024 = derived emotion labels). See §5. |
 | Smoke test | `notebooks/smoke_test.ipynb`: 5 hand-picked code-switched utterances × both models. Both models load and generate. RTF ≈ 1.8 single-stream on an L40. Orpheus may truncate long inputs (utt 48). |
 | Key finding | Much of MaSaC's `Utterances.txt` is **garbled automatic text**, not clean human transcripts. A clean test set needs curation (see §5). |
@@ -77,7 +77,7 @@ The project's artifacts so far were created in sp4050's workspace. It is the **r
 | What | Path |
 |---|---|
 | Python env (working, tested) | `/local/speech/users/sp4050/envs/tts` |
-| Model weights | `/local/speech/users/sp4050/hf_cache/hub/` (Indic-Speak, Orpheus Hindi, SNAC) |
+| Model weights | `/local/speech/users/sp4050/hf_cache/hub/` (Indic-Speak, Orpheus Hindi ft + pt, SNAC) |
 | MaSaC (both releases) | `/local/speech/users/sp4050/data/masac/` |
 | Smoke-test audio | `/local/speech/users/sp4050/outputs/smoke/<model>/<voice>/<line>.wav` |
 | Executed smoke-test notebook | `/home/sp4050/cs-tts-steering/notebooks/smoke_test.ipynb` |
@@ -131,6 +131,8 @@ hf auth login
 hf download bodhan-ai/indic-speak --exclude "*__pycache__*"
 hf download canopylabs/3b-hi-ft-research_release \
   --exclude rng_state.pth --exclude scheduler.pt --exclude training_args.bin --exclude trainer_state.json
+hf download canopylabs/3b-hi-pretrain-research_release \
+  --include "*.safetensors" --include "*.json" --include README.md --exclude trainer_state.json  # skips the 15 GB FSDP duplicate
 hf download hubertsiuzdak/snac_24khz
 
 # 5. Repo + MaSaC
@@ -166,10 +168,10 @@ Caveats:
 
 ## 6. Models: practical notes
 
-| | Indic-Speak | Orpheus 3B Hindi |
+| | Indic-Speak | Orpheus 3B Hindi (`orpheus-hi-ft`, `orpheus-hi-pt`) |
 |---|---|---|
 | Load | `inference.py` in the snapshot dir (`TTS` class, `build_prompt`, `ids_to_codes`) | `AutoModelForCausalLM` + `snac_24khz` decoder |
-| Voices | Hindi: `Kavya` (F), `Amit` (M); see `voices.md` in the snapshot | Undocumented; sweep in smoke test (`ऋतिका`, `ritika`, `tara`, none) |
+| Voices | Hindi: `Kavya` (F), `Amit` (M); see `voices.md` in the snapshot | **ft**: one voice, undocumented; we use `ऋतिका` (sweep in smoke test). **pt**: base model with no named voices; prompt with text only (`--voices none`), so the speaker varies per clip |
 | Decoding | t 0.6, top_p 0.9, top_k 50, **rep. penalty 1.2** (vendor config; `inference.py` omits it) | t 0.6, top_p 0.9, **rep. penalty 1.1** (required) |
 | Prompt | `<|start_of_human|>…<|start_of_speech|>` (built by `build_prompt`) | `128259` + tok(`"{voice}: {text}"`) + `128009, 128260`; audio after `128257`, ends at `128258`; codes from `128266` |
 | Batching | `inference.py` is single-utterance; write a batched wrapper | same |
