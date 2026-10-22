@@ -163,7 +163,7 @@ def main():
     recs = {}
     for log in sorted(a.run.glob("*/generations.jsonl")):
         for r in map(json.loads, log.read_text(encoding="utf-8").splitlines()):
-            if "error" not in r and Path(r["wav"]).exists():
+            if "error" not in r and (a.run / r["wav"]).exists():  # "wav" is relative to the run
                 recs[(r["model"], r["voice"], r["line"])] = r
     df = pd.DataFrame(recs.values()).sort_values(["model", "voice", "line"]).reset_index(drop=True)
     print(f"{len(df)} clips", flush=True)
@@ -176,17 +176,18 @@ def main():
         cached = {r["wav"]: r["hyp"] for r in map(json.loads, asr_path.read_text(encoding="utf-8").splitlines())}
     todo = [w for w in df.wav if w not in cached]
     if todo:
-        for w, h in zip(todo, transcribe(todo, a.device)):
+        for w, h in zip(todo, transcribe([str(a.run / w) for w in todo], a.device)):
             cached[w] = h
         asr_path.write_text("".join(json.dumps(dict(wav=w, hyp=cached[w]), ensure_ascii=False) + "\n"
                                     for w in df.wav), encoding="utf-8")
     df["hyp"] = df.wav.map(cached)
+    df["path"] = [str(a.run / w) for w in df.wav]
 
     rows = []
     for r in df.itertuples():
         ref_rom, hyp_rom = romanize(r.text), romanize(r.hyp)
         eng_found, eng_total = english_survival(r.text, hyp_rom)
-        wav = load(r.wav)
+        wav = load(r.path)
         row = dict(
             cer=jiwer.cer(ref_rom, hyp_rom) if ref_rom else np.nan,
             wer=jiwer.wer(ref_rom, hyp_rom) if ref_rom else np.nan,
@@ -202,7 +203,7 @@ def main():
 
     print("speaker embeddings ...", flush=True)
     df["emb_idx"] = range(len(df))
-    embs = speaker_embeddings(list(df.wav), a.device)
+    embs = speaker_embeddings(list(df.path), a.device)
     consistency = {}
     for key, g in df.groupby(["model", "voice"]):
         e = embs[g.emb_idx.to_numpy()]

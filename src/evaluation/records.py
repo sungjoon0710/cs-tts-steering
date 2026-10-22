@@ -64,7 +64,7 @@ def import_snapshot(source):
             header = inventory.get(rel)
             if successes and row.get("text") != by_id[uid]["text_raw"]:
                 raise ValueError("Selected generation/input text mismatch")
-            if row.get("wav") and not row["wav"].replace("\\", "/").endswith("/" + rel):
+            if row.get("wav") and not ("/" + row["wav"].replace("\\", "/")).endswith("/" + rel):
                 raise ValueError("Generation/audio association mismatch")
             generations.append({"generation_id": stable_id(uid, config, chosen["attempt_id"] if chosen else "missing"),
                                 "utterance_id": uid, "configuration_id": config, "relative_audio_path": rel,

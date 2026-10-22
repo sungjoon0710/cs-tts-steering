@@ -1,7 +1,8 @@
 """Synthesize MaSaC Utterances.txt lines with one baseline model.
 
 Writes <out>/<model>/<voice>/<line>.wav and appends one JSON record per clip to
-<out>/<model>/generations.jsonl. Resumable: existing wavs are skipped.
+<out>/<model>/generations.jsonl ("wav" is relative to <out>, so runs can be moved or
+renamed). Resumable: existing wavs are skipped.
 
     CUDA_VISIBLE_DEVICES=0 python scripts/generate.py --model indic-speak --voices Kavya Amit \
         --lines 0-99 --out $LOCAL_SP/outputs/baseline
@@ -91,7 +92,7 @@ def main():
                 wav_path = vdir / f"{i}.wav"
                 if wav_path.exists():
                     continue
-                rec = dict(meta, voice=voice, line=i, speaker=speaker, text=text, wav=str(wav_path))
+                rec = dict(meta, voice=voice, line=i, speaker=speaker, text=text, wav=wav_path.relative_to(a.out).as_posix())
                 if not text:
                     rec["error"] = "empty text"
                 else:
