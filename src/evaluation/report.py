@@ -38,7 +38,7 @@ def value(row, metric):
 
 def display_config(config):
     # Plot-only transliteration avoids Matplotlib's unsupported Devanagari shaping.
-    return "Orpheus Hindi / Ritika" if config.startswith("orpheus-hi/") else config.replace("/", " / ")
+    return "orpheus-hi-ft / Ritika" if config.startswith("orpheus-hi-ft/") else config.replace("/", " / ")
 
 
 def summarize_judgments(rows):

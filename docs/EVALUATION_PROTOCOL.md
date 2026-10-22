@@ -6,8 +6,8 @@ and [EVALUATION_FULL.md](EVALUATION_FULL.md). It can run before human validation
 while preserving provisional/exploratory statuses. `scripts/evaluate.py` is the
 upstream model-based evaluator and is a different entry point.
 
-The experiment compares three **model–voice configurations**, not three
-architectures: Indic-Speak/Amit, Indic-Speak/Kavya, and Orpheus Hindi/ऋतिका.
+The experiment compares four **model–voice configurations**, not three
+architectures: Indic-Speak/Amit, Indic-Speak/Kavya, Orpheus Hindi fine-tuned (`orpheus-hi-ft`)/ऋतिका, and Orpheus Hindi pretrained (`orpheus-hi-pt`, text-only prompt).
 Cross-model differences also involve voices. No architecture-only causal claim
 is supported. The current baseline consists of consecutive MSH-COMICS source
 lines 0–99, not the curated/episode-held-out test set originally proposed.

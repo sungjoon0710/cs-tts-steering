@@ -24,9 +24,10 @@ def fetch(root, destination, ids=None):
     script = r'''
 import pathlib,sys,tarfile,io,json,hashlib,wave,os
 root=pathlib.Path(ROOT)
-names=['utterances.jsonl','indic-speak/generations.jsonl','orpheus-hi/generations.jsonl',
+MODELS=('indic-speak','orpheus-hi-ft','orpheus-hi-pt')
+names=['utterances.jsonl',*(m+'/generations.jsonl' for m in MODELS),
        'eval/asr.jsonl','eval/metrics.csv','eval/summary.csv','eval/summary.md',
-       'eval.log','indic-speak.log','orpheus-hi.log']
+       'eval.log',*(m+'.log' for m in MODELS)]
 hashes={}
 with tarfile.open(fileobj=sys.stdout.buffer,mode='w|') as tar:
  def add(name,data):
@@ -34,9 +35,10 @@ with tarfile.open(fileobj=sys.stdout.buffer,mode='w|') as tar:
   hashes[name]=hashlib.sha256(data).hexdigest()
  if IDS is None:
   for n in names:
-   add(n,(root/n).read_bytes())
+   if (root/n).exists(): add(n,(root/n).read_bytes())
   inventory=[]
-  for model in ('indic-speak','orpheus-hi'):
+  for model in MODELS:
+   if not (root/model).is_dir(): continue
    for voice in sorted((root/model).iterdir()):
     if not voice.is_dir(): continue
     for p in sorted(voice.glob('*.wav')):
@@ -50,7 +52,8 @@ with tarfile.open(fileobj=sys.stdout.buffer,mode='w|') as tar:
      inventory.append(row)
   add('audio_inventory.jsonl',(''.join(json.dumps(r)+'\n' for r in inventory)).encode())
  else:
-  for model in ('indic-speak','orpheus-hi'):
+  for model in MODELS:
+   if not (root/model).is_dir(): continue
    for voice in sorted((root/model).iterdir()):
     if not voice.is_dir(): continue
     for uid in IDS:

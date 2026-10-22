@@ -24,20 +24,24 @@ from src.evaluation.records import import_snapshot,select_pilot
 from src.evaluation.expanded import VERSION,content_proxies,expanded_audio
 from src.evaluation.text import NORMALIZATION_VERSION
 
-FILES=('utterances.jsonl','indic-speak/generations.jsonl','orpheus-hi/generations.jsonl',
-       'eval/asr.jsonl','eval/metrics.csv','eval/summary.csv','eval/summary.md','eval.log','indic-speak.log','orpheus-hi.log')
+MODELS=('indic-speak','orpheus-hi-ft','orpheus-hi-pt')
+FILES=('utterances.jsonl',*(m+'/generations.jsonl' for m in MODELS),
+       'eval/asr.jsonl','eval/metrics.csv','eval/summary.csv','eval/summary.md','eval.log',*(m+'.log' for m in MODELS))
 
 
 def source_snapshot(baseline,run):
     destination=run/'source';destination.mkdir(parents=True,exist_ok=True)
     hashes={}
     for rel in FILES:
-        source=baseline/rel;data=source.read_bytes();target=destination/rel
+        source=baseline/rel
+        if not source.exists():continue  # model not generated yet
+        data=source.read_bytes();target=destination/rel
         if target.exists() and target.read_bytes()!=data:raise ValueError('Baseline metadata changed; use a new run')
         if not target.exists():target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(data)
         hashes[rel]=digest(data)
     inventory=[]
-    for model in ('indic-speak','orpheus-hi'):
+    for model in MODELS:
+        if not (baseline/model).is_dir():continue
         for voice in sorted((baseline/model).iterdir()):
             if not voice.is_dir():continue
             for path in sorted(voice.glob('*.wav')):
