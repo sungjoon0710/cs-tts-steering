@@ -18,6 +18,7 @@ Research summary: [`README.md`](README.md). Full study notes: [`docs/study_desig
 | Smoke test | `notebooks/smoke_test.ipynb`: 5 hand-picked code-switched utterances × both models. Both models load and generate. RTF ≈ 1.8 single-stream on an L40. Orpheus may truncate long inputs (utt 48). |
 | Key finding | Much of MaSaC's `Utterances.txt` is **garbled automatic text**, not clean human transcripts. A clean test set needs curation (see §5). |
 | Decision | Naturalness is judged **only by Hindi–English bilingual listeners** (MOS / A-B). Don't use UTMOS or SQUIM. |
+| CAA pilot (2026-10-29) | Steering Indic-Speak (Amit, Kavya) and Orpheus (Ritika) toward natural speech: the direction exists and is causal, but on objective metrics it shifts speaker pitch/pausing rather than delivery. Objective no-go for all three; Indic-Kavya best candidate; listening pending. Plan: `docs/caa_pilot_plan.md`. Report: `docs/reports/preliminary_caa.pdf`. Run: `$LOCAL_SP/outputs/caa_pilot/20261029-1320_listening100/` (sp4050). |
 
 Next: batched generation wrapper → curated ~100-utterance pilot set → pilot run (≤ 1 h) → listening package for raters. See `docs/baseline_plan.md`.
 
@@ -68,6 +69,7 @@ Without the config, the equivalent is `ssh <uni>@kedi.cs.columbia.edu`. If you d
 | Datasets | `$LOCAL_SP/data/` (MaSaC under `data/masac/`) | no |
 | Experiment outputs | `$LOCAL_SP/outputs/<experiment>/<run_id>/` (smoke test: `outputs/smoke/<model>/<voice>/<line>.wav`) | no |
 | Lab corpora (read-only use) | `/proj/speech/corpora/` (code-switching: `code-switching/`, `seame/`, `CSpeech/`) | no |
+| 100 matched listening examples (aa6109; input for the CAA pilot) | [`/local/speech/users/aa6109/Listening_Examples_100/`](vscode://vscode-remote/ssh-remote+kedi/local/speech/users/aa6109/Listening_Examples_100): per utterance, natural + 4 Indic-Speak + 1 Orpheus wav and `TRANSCRIPT.txt`; `manifest.csv`, `utterances_100.csv`, `listen.html`. Open the path directly; the parent dir isn't listable. See [`docs/caa_pilot_plan.md`](docs/caa_pilot_plan.md) §3 | no |
 
 Home-directory shortcuts (optional): `ln -s /proj/speech/corpora ~/corpora; ln -s /local/speech ~/local_speech`.
 
@@ -81,6 +83,7 @@ The project's artifacts so far were created in sp4050's workspace. It is the **r
 | MaSaC (both releases) | `/local/speech/users/sp4050/data/masac/` |
 | Smoke-test audio | `/local/speech/users/sp4050/outputs/smoke/<model>/<voice>/<line>.wav` |
 | Executed smoke-test notebook | `/home/sp4050/cs-tts-steering/notebooks/smoke_test.ipynb` |
+| Link to the 100 listening examples | `/local/speech/users/sp4050/Listening_Examples_100` → symlink to `/local/speech/users/aa6109/Listening_Examples_100` |
 
 Rules:
 - **Read** from sp4050's workspace. **Write** only to your own `$LOCAL_SP`. Never modify another member's files.

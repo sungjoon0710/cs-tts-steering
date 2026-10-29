@@ -1,0 +1,265 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{xcolor}
+\usepackage{xurl}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\setlist{nosep}
+\hypersetup{colorlinks=true,linkcolor=blue!50!black,urlcolor=blue!50!black}
+\newcommand{\astar}{\alpha^{*}}
+
+\title{Preliminary Study: Contrastive Activation Addition for\\Natural Code-Switched Speech in Speech-LM TTS}
+\author{cs-tts-steering project}
+\date{October 29, 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We tested whether contrastive activation addition (CAA), following CoCoEmo (Wang et al., ICML 2026), can make Hindi--English code-switched TTS output sound more like natural speech. We built a steering vector $v=\bar h_{\text{natural}}-\bar h_{\text{synthetic}}$ from 76 training transcripts. Each transcript has a natural TV recording and default TTS output. We extracted the vector in three conditions: Indic-Speak with voice Amit, Indic-Speak with voice Kavya, and Orpheus Hindi with voice Ritika. A linear natural-vs-synthetic direction exists in every condition: the held-out projection AUC is $\approx1.0$, against a permutation 95th percentile of $0.62$. Adding it to attention outputs at small strength ($\astar=1$) is causal: it moves the model's internal representation and an external natural-vs-TTS classifier in the intended direction, beyond random vectors of the same norm. However, it does \emph{not} bring the output closer to the paired natural recording, in embedding similarity or in prosody. The acoustic changes are mostly a shift in global pitch level and pausing toward the TV speakers. All three conditions are therefore \textbf{no-go on the pre-registered objective criteria}. Indic-Kavya is the most promising: it is the only condition that passes all guardrails and shows a symmetric $\pm v$ effect. Indic-Speak is more steerable than Orpheus. Blind listening is pending.
+\end{abstract}
+
+\section{Motivation and question}
+Speech-LM TTS systems read code-switched Hinglish intelligibly but sound read-aloud and unnatural. CoCoEmo shows that in hybrid TTS, emotional prosody is produced mainly by the speech language model, and that mean-difference vectors added to its activations control emotion without retraining. We ask whether the same mechanism works for a different attribute, naturalness: \emph{does the LM contain a linear ``natural vs.\ synthetic'' direction, and does adding it make code-switched output more natural without hurting intelligibility or changing the voice?} This is a feasibility study with a go/no-go answer per condition. The full plan is in \texttt{docs/caa\_pilot\_plan.md}.
+
+\section{Setup}
+
+\subsection{Data}
+We used 100 code-switched MaSaC utterances (\texttt{Listening\_Examples\_100}). Each has a natural TV-show recording (6 speakers, about 65\% male, stereo 44.1\,kHz) and default TTS output for the same mixed Devanagari/English transcript. The transcripts are machine-transliterated and contain spelling errors. We dropped five utterances whose generation hit the token cap (4 Orpheus, 1 Amit) from \emph{all} conditions. The remaining 95 were split at the utterance level into 76 train (16 of which form a dev subset for tuning) and 19 test, with seed 20261029. All conditions share the split. The only audio processing was mixing to mono and resampling to 24\,kHz.
+
+\subsection{Conditions}
+\begin{center}
+\begin{tabular}{lp{0.55\textwidth}l}
+\toprule
+Condition & Model & Voice \\
+\midrule
+Indic-Amit & Indic-Speak (\texttt{bodhan-ai/indic-speak}) & Amit (M) \\
+Indic-Kavya & Indic-Speak & Kavya (F) \\
+Orpheus-Ritika & Orpheus 3B Hindi FT (\texttt{canopylabs/3b-hi-ft-\allowbreak research\_release}) & Ritika \\
+\bottomrule
+\end{tabular}
+\end{center}
+Pinned revisions: Indic-Speak 76e0814f, Orpheus 70c4b32a. Both LMs are Llama-3.2-3B models (28 layers, $d=3072$) that emit SNAC audio codes, 7 tokens per frame. Indic-Speak decodes them with a fine-tuned Vocos and Orpheus with the stock SNAC decoder. As in CoCoEmo, we steer only the LM.
+
+\subsection{Steering vector extraction}
+Indic-Speak and Orpheus have no reference-audio input, unlike CosyVoice2. We therefore \textbf{teacher-forced} each clip instead: the model's text prompt (with the condition's voice name) followed by the clip's SNAC tokens. Natural and synthetic wavs were both re-encoded with SNAC (rev.\ d73ad176), so the two classes go through the same encoder. Indic-Speak's rule of dropping consecutive frames with a repeated first code was reproduced, and round-trip tests against each model's own decoder function pass on real audio.
+
+Within a condition, the natural and synthetic inputs differ only in the audio. We recorded the residual stream and the attention output (\texttt{o\_proj}) at every layer, pooled two ways (last audio token and mean over audio tokens). That gives 112 sites per condition. For each site,
+\[
+v^{(l,o)} = \frac{1}{|D_{\text{nat}}|}\sum_{i\in D_{\text{nat}}} h_i^{(l,o)} - \frac{1}{|D_{\text{syn}}|}\sum_{j\in D_{\text{syn}}} h_j^{(l,o)} .
+\]
+At inference we add the vector and then rescale to the original norm: $\tilde h = h+\alpha v$, $\tilde h \leftarrow \tilde h\,\|h\|/\|\tilde h\|$. This is applied at every position of the selected sites.
+
+\subsection{Site and strength selection}
+All selection used only training utterances.
+\begin{itemize}
+\item \textbf{Diagnostics.} For each site we ran a regularized linear probe (5-fold CV by utterance), computed the held-out AUC of projecting onto $v$ (with $v$ estimated on 4 folds), and compared both against a label-permutation control.
+\item \textbf{Sweep 1.} A layer-wise steering sweep on the dev subset over the 6 shortlisted sites, $\alpha\in\{2,4\}$.
+\item \textbf{Sweep 2.} Top-$K$ combinations, $K\in\{1,2,3\}$, with $\alpha\in\{0.5,1,2,3,4,6\}$.
+\item \textbf{Selection rule} (fixed in advance). A configuration is admissible if three guardrails hold: WER/CER at most the condition's own baseline $+2$ points, S-SIM $\ge0.75$, and failure rate at most $\max(5\%,\text{baseline failure rate})$. Among admissible configurations we chose the best composite of the three naturalness metrics. The mild strength is the next-lower admissible $\alpha$.
+\end{itemize}
+
+\subsection{Test protocol and metrics}
+We ran 19 test utterances $\times$ 3 seeds per condition under seven generation conditions: $\alpha=0$; $v$ at $\astar$; $v$ at the mild strength; three random vectors of the same norm at $\astar$; and $-v$ at $\astar$. That is 1{,}197 clips. Following CoCoEmo, emotion classification was replaced by naturalness measures:
+\begin{itemize}
+\item \textbf{M1} (in place of TEP): log-odds of ``natural'' from a logistic classifier on WavLM-base-plus embeddings. It was trained on the 76 training utterances' natural clips vs.\ all three conditions' synthetic clips, and has held-out AUC $=1.0$. We use the logit because $P(\text{natural})$ saturates.
+\item \textbf{M2} (in place of E-SIM): cosine similarity of WavLM embeddings to the \emph{paired} natural clip.
+\item \textbf{M3}: prosody distance to the paired natural clip, lower is better. It is the IQR-scaled absolute difference averaged over 7 features: F0 median, SD and range; intensity SD; speaking rate; pause count; and pause time. We also report DTW-aligned F0 and energy contour CCC.
+\item \textbf{Guardrails}: WER/CER from Whisper-large-v3, used only relative to each baseline because even natural speech scores WER $0.70$ against these transcripts; S-SIM, the WavLM-SV cosine to the unsteered clip with the same seed; and failure rate (no end-of-speech token, token budget reached, or abnormal duration).
+\end{itemize}
+Deltas are computed against $\alpha=0$, averaged over seeds within each utterance, with 95\% bootstrap CIs over utterances and paired Wilcoxon tests. The three conditions are compared with a Friedman test and pairwise Wilcoxon tests. Following the project's rules, we did not use UTMOS or SQUIM. Naturalness is ultimately judged by bilingual listeners (\S\ref{sec:listening}).
+
+\section{Results}
+
+\subsection{A natural-vs-synthetic direction exists in every condition}
+\begin{table}[h]
+\centering
+\caption{Diagnostics on the 76 training pairs (112 sites per condition). Permutation control: 200 pair-swaps for AUC, 3 per site for probes.}
+\label{tab:diag}
+\begin{tabular}{lccc}
+\toprule
+ & Indic-Amit & Indic-Kavya & Orpheus-Ritika \\
+\midrule
+Probe acc.\ $=1.0$ (sites) & 86/112 & 108/112 & 82/112 \\
+Probe acc.\ under permutation & 0.48 & 0.49 & 0.49 \\
+Held-out projection AUC (min) & 0.98 & 0.977 & 0.89 \\
+Permutation AUC, mean / max 95th pct. & 0.48 / 0.62 & 0.48 / 0.62 & 0.49 / 0.62 \\
+Held-out Cohen's $d$ (median, resid / attn) & 8.7 / 7.7 & 7.9 / 7.2 & 5.7 / 5.8 \\
+$\|v\|/\|h\|$ (median, resid / attn) & 0.38 / 0.75 & 0.31 / 0.70 & 0.28 / 0.73 \\
+Audio-token NLL, natural vs.\ synthetic (nats) & 5.74 vs.\ 2.93 & 5.75 vs.\ 2.87 & 5.93 vs.\ 3.17 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Separation is near-perfect at almost every site, including layer~0 (Table~\ref{tab:diag}). This is what the plan expected, because speaker and recording channel make the classes trivially separable. As a result, probes and AUC cannot choose a site, and the steering sweep had to.
+
+Indic-Speak separates most strongly in early residual layers (2--6) and again at 23--25. Orpheus's separation grows with depth. The Amit and Kavya vectors are closely aligned (cosine 0.8--0.9), except at attention layers 16--18 (0.33--0.51). The direction is therefore largely shared across the two voices.
+
+Natural audio has about twice the per-token NLL of synthetic audio, and $v$ is partly aligned with the high-vs-low-NLL direction among synthetic clips (cosine up to 0.70). So $v$ also encodes ``audio the model finds surprising''.
+
+\subsection{Selected configurations}
+\begin{table}[h]
+\centering
+\caption{Selection on the dev subset. All selected sites are attention outputs (\texttt{o\_proj}) with a mean-pooled $v$.}
+\label{tab:sel}
+\begin{tabular}{lcccc}
+\toprule
+Condition & Admissible / tried & Layers & $\astar$ & Mild $\alpha$ \\
+\midrule
+Indic-Amit & 8/18 & 9, 23 & 1.0 & 0.5 \\
+Indic-Kavya & 12/18 & 9, 27, 23 & 1.0 & 0.5 \\
+Orpheus-Ritika & 3/18 & 25, 23, 9 & 1.0 & 0.5 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Residual-stream steering at $\alpha\ge2$ broke generation in every condition: runaway outputs, missing end-of-speech, or Orpheus frames that could not be decoded. Only attention-output steering at small $\alpha$ was usable (Table~\ref{tab:sel}).
+
+In sweep~1, steering effect was \emph{negatively} correlated with probe separation ($-0.83$, $-0.39$, $-0.62$), because the broken residual sites were also the best-separating ones. This is the opposite of CoCoEmo's finding that separability predicts steerability.
+
+\subsection{Test results}
+\begin{table}[h]
+\centering
+\small
+\caption{Test results (19 utterances $\times$ 3 seeds). $\Delta$ is relative to $\alpha=0$ with 95\% bootstrap CI. M1, M2: higher is better. M3: lower is better. Bold: CI excludes 0 in the intended direction.}
+\label{tab:test}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{llccccccc}
+\toprule
+Cond. & Gen. & Fail & WER & CER & S-SIM & $\Delta$M1 & $\Delta$M2 & $\Delta$M3 \\
+\midrule
+Amit & $\alpha=0$ & 0.00 & 0.528 & 0.434 & -- & -- & -- & -- \\
+ & $v$, $\astar$ & 0.04 & 0.741$^\dagger$ & 0.640$^\dagger$ & 0.936 & \textbf{+2.20} [1.71, 2.61] & +0.015 [0.000, 0.030] & +0.046 [$-$0.02, 0.13] \\
+ & $v$, 0.5 & 0.00 & 0.537 & 0.435 & 0.969 & \textbf{+0.77} [0.47, 1.07] & \textbf{+0.013} [0.004, 0.024] & +0.003 [$-$0.04, 0.05] \\
+ & $-v$, $\astar$ & 0.00 & 0.549 & 0.439 & 0.977 & $-$0.16 [$-$0.42, 0.12] & $-$0.010 [$-$0.018, $-$0.002] & +0.062 [0.02, 0.11] \\
+\midrule
+Kavya & $\alpha=0$ & 0.00 & 0.488 & 0.408 & -- & -- & -- & -- \\
+ & $v$, $\astar$ & 0.02 & 0.501 & 0.407 & 0.951 & \textbf{+1.80} [1.18, 2.72] & +0.015 [$-$0.014, 0.042] & +0.054 [$-$0.000, 0.118] \\
+ & $v$, 0.5 & 0.00 & 0.482 & 0.397 & 0.972 & \textbf{+0.43} [0.22, 0.63] & \textbf{+0.010} [0.001, 0.019] & +0.011 [$-$0.04, 0.05] \\
+ & $-v$, $\astar$ & 0.00 & 0.522 & 0.438 & 0.975 & $-$0.40 [$-$0.68, $-$0.18] & $-$0.002 [$-$0.013, 0.008] & $-$0.024 [$-$0.06, 0.01] \\
+\midrule
+Orpheus & $\alpha=0$ & 0.00 & 0.615 & 0.519 & -- & -- & -- & -- \\
+ & $v$, $\astar$ & 0.05 & 0.642 & 0.647 & 0.938 & \textbf{+0.94} [0.48, 1.52] & +0.007 [$-$0.022, 0.034] & $-$0.004 [$-$0.08, 0.08] \\
+ & $v$, 0.5 & 0.04 & 0.671 & 0.675 & 0.931 & +0.20 [$-$0.14, 0.59] & +0.006 [$-$0.02, 0.03] & +0.055 [$-$0.02, 0.16] \\
+ & $-v$, $\astar$ & 0.09 & 0.772 & 0.633 & 0.938 & +0.29 [0.03, 0.59] & $-$0.001 & $-$0.028 \\
+\bottomrule
+\end{tabular}}
+
+\smallskip
+\footnotesize $^\dagger$One Whisper hallucination (utterance \texttt{train\_1394\_7}, seed 1235; output 12$\times$ the reference length). Without that clip, WER is 0.485 vs.\ 0.471, and the median clip WER is unchanged (0.476). The pre-registered corpus-level guardrail still counts as failed.
+\end{table}
+
+\paragraph{Against random vectors.}
+These are per-utterance differences, $v$ at $\astar$ minus the mean of three random vectors of the same norm.
+\begin{itemize}
+\item \textbf{M1:} $+2.09$ [1.69, 2.45] for Amit, $+1.76$ [1.13, 2.64] for Kavya and $+0.83$ [0.40, 1.36] for Orpheus (all Wilcoxon $p<0.001$). Random vectors alone move M1 by only $-0.02$ to $+0.25$.
+\item \textbf{M2:} no CI excludes 0. Kavya has Wilcoxon $p=0.023$, but its CI is $[-0.011, 0.035]$.
+\item \textbf{M3:} Kavya is \emph{worse} than random ($+0.069$ [0.025, 0.127], $p=0.004$); Amit and Orpheus are not significant.
+\end{itemize}
+
+\paragraph{Mechanistic check.}
+Each steered clip was re-encoded and teacher-forced through the \emph{unsteered} model, then projected onto the unit $v$ at the first selected site.
+\begin{itemize}
+\item $v$ at $\astar$ moves the projection by $+1.48$ (Amit), $+1.07$ (Kavya) and $+8.4$ (Orpheus). $-v$ moves it by $-0.42$, $-0.53$ and $-4.4$. Random vectors give about 0. All $v$ and $-v$ effects have $p<10^{-4}$.
+\item The natural--synthetic gaps along these directions are 4.7, 4.6 and 38.7, so $\astar=1$ closes about 20--30\% of the gap.
+\item The intervention is causal and dose-dependent at the level of the representation.
+\end{itemize}
+
+\paragraph{What changes acoustically.}
+Median F0 moves toward the natural pool's mean of 14.1\,st (re 100\,Hz):
+\begin{itemize}
+\item Amit: $7.9\to12.5$\,st
+\item Kavya: $13.8\to14.5$\,st
+\item Orpheus: $17.6\to15.7$\,st
+\end{itemize}
+Speech also gets slightly slower, with more and longer pauses ($+0.3$ to $+0.7$ per clip). Contour agreement with the paired natural clip barely changes: F0 and energy CCC rise by only $+0.01$ to $+0.09$. In other words, the vector moves the global pitch level and pausing toward the TV speakers, not the utterance-specific delivery. This is the speaker/gender confound the plan anticipated. For male Amit it even \emph{raises} pitch toward the mixed-gender pool.
+
+\subsection{Three-way comparison}
+On the same 19 utterances, the gains in M1 differ by condition (Friedman $\chi^2=12.7$, $p=0.0017$): Amit $\ge$ Kavya $>$ Orpheus. Amit vs.\ Orpheus has $p=0.003$, Kavya vs.\ Orpheus $p=0.016$, and Amit vs.\ Kavya $p=0.066$. Gains in M2 ($p=0.53$) and M3 ($p=0.37$) do not differ. Indic-Speak is more steerable along $v$ than Orpheus, and its two voices respond alike. Orpheus has the weakest baseline and the noisiest response, and it is the only condition where $-v$ did not reverse M1.
+
+\subsection{Go/no-go}
+\begin{table}[h]
+\centering
+\caption{Pre-registered criteria (plan \S8), judged on the test set.}
+\label{tab:go}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lccc}
+\toprule
+Criterion & Indic-Amit & Indic-Kavya & Orpheus-Ritika \\
+\midrule
+1. Direction exists (projection AUC $\gg$ permutation) & pass & pass & pass \\
+2a. M1 improves vs.\ $\alpha=0$ and random & pass & pass & pass \\
+2b. M2 or M3 improves vs.\ $\alpha=0$ and random & fail & fail (M3 worse) & fail \\
+2c. $-v$ reverses the effect & partial & pass (M1) & fail \\
+3. Guardrails on test & fail (WER/CER$^\dagger$) & pass & fail (CER, failures) \\
+4. Listeners prefer steered & pending & pending & pending \\
+\midrule
+\textbf{Objective verdict} & \textbf{no-go} & \textbf{no-go (best candidate)} & \textbf{no-go} \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\section{Discussion}
+\paragraph{What worked.} The contrast is strongly linearly encoded in both backbones. Small attention-output interventions are causal and dose-dependent, and they leave the voice largely intact (S-SIM $\ge0.93$) and intelligibility mostly intact. This reproduces CoCoEmo's core mechanism on two new backbones and a new attribute. The LM is a workable place to steer.
+
+\paragraph{What did not.} The vector does not encode naturalness \emph{as defined by the paired recording}. Three confounds are present in $v$ by construction:
+\begin{enumerate}
+\item speaker and gender identity of the TV actors;
+\item the TV recording channel (stereo mix, music, laugh track);
+\item ``surprising'' audio, shown by the twofold NLL gap.
+\end{enumerate}
+The external classifier (M1) can be satisfied by moving toward any of these, which explains why M1 rises while M2 and M3 do not. Our result differs from CoCoEmo, where separability predicted steerability. There, the contrast was matched on speaker and transcript, so the direction isolated the target attribute. Here, separation is trivially high everywhere, and the most separable residual sites are the least steerable.
+
+\paragraph{Implication.} The bottleneck is the contrast data, not the mechanism. A cleaner contrast is the next step before scaling up.
+
+\section{Limitations and deviations from the plan}
+\begin{itemize}
+\item The test set is small: 19 utterances, 3 seeds, and one random split.
+\item WER is noisy against machine-transliterated references; even natural speech scores 0.70.
+\item Human listening is not done yet. The token-cap clips were excluded but not listened to.
+\item M1 uses the classifier logit, because $P(\text{natural})$ saturates.
+\item The failure guardrail was relaxed to $\max(5\%,\text{own baseline})$ because Orpheus's dev baseline failed 12--19\%. It was applied the same way to all conditions.
+\item Sweep~1 ranked sites with a usability filter. The strict selection rule was applied unchanged in the final step.
+\item The composite score is the mean of standardized $\Delta$M1, $\Delta$M2 and $-\Delta$M3. The plan did not define it.
+\item Generation was batched, so a clip reproduces only with the same batch composition. Batch seeds are recorded per clip.
+\item A padding bug was found and fixed. Hugging Face's repetition penalty also scores padding tokens, and a stop-token pad suppressed end-of-speech in padded rows. The affected sweep was discarded and rerun.
+\item Not done: the ``generated tokens only'' injection ablation, and prosody at code-switch points (no word alignments available).
+\end{itemize}
+
+\section{Next steps}
+\begin{enumerate}
+\item \textbf{Blind listening} (\S\ref{sec:listening}). Run it first, to decide whether Indic-Kavya passes criterion~4.
+\item \textbf{Cleaner contrasts.} Options:
+  \begin{itemize}
+  \item natural vs.\ natural speech from the \emph{same} speaker in different speaking styles;
+  \item speaker-matched natural data, for example natural recordings of the Kavya/Amit voice artists if available;
+  \item synthetic-vs-synthetic controls, to estimate how much of $v$ is channel or NLL.
+  \end{itemize}
+\item \textbf{Remove known confounds from $v$.} Project out the speaker/F0 direction and the high-NLL direction, then re-test M2 and M3.
+\item \textbf{Remaining ablations.} Steer generated tokens only, and add code-switch-point prosody once word alignments exist.
+\end{enumerate}
+
+\section{Listening package}\label{sec:listening}
+The package has 63 blinded A/B items:
+\begin{itemize}
+\item 57 pairs of $\alpha=0$ vs.\ $v$ at $\astar$ (19 utterances $\times$ 3 conditions);
+\item 6 random-vector control pairs;
+\item an optional natural anchor clip per item (a different speaker).
+\end{itemize}
+The A/B order is randomized and the items are shuffled across conditions. The package contains audio and transcripts, so it is kept on kedi only. The unblinding key must not be given to raters.
+
+\appendix
+\section{Provenance}
+\begin{itemize}
+\item \textbf{Run:} \path{/local/speech/users/sp4050/outputs/caa_pilot/20261029-1320_listening100/} on kedi (\texttt{report.md}, \texttt{report\_phase1.md}, \texttt{metrics/test/}, \texttt{selection/}, \texttt{listening/}).
+\item \textbf{Code:} \path{src/steering.py}, \path{src/snac_encode.py}, \path{src/caa_stats.py}, \path{src/caa_pilot.py}, \path{scripts/caa_extract.py}, \path{scripts/caa_generate.py}, \path{scripts/caa_evaluate.py}, \path{configs/caa_pilot/}, \path{tests/test_caa.py} (7 tests passing on kedi). Not yet committed. The run's \texttt{provenance/} directory records base commit \texttt{dd6044b} plus the uncommitted diff and package versions.
+\item \textbf{Compute:} RTX A5500 GPUs on kedi. 600 teacher-forced passes; 624 + 912 dev clips; 1{,}197 test clips.
+\item \textbf{Evaluation models:} Whisper-large-v3, \path{microsoft/wavlm-base-plus} (rev.\ 4c66d480), \path{microsoft/wavlm-base-plus-sv}. Statistics are implemented in numpy/torch.
+\end{itemize}
+
+\end{document}

@@ -1,0 +1,40 @@
+# CAA pilot (docs/caa_pilot_plan.md). Paths are kedi paths; outputs go to $LOCAL_SP/outputs/caa_pilot/<run_id>/.
+data_dir: /local/speech/users/aa6109/Listening_Examples_100   # read-only input
+seed: 1234
+split:
+  seed: 20261029
+  test_fraction: 0.2
+  dev_size: 16
+  cv_folds: 5
+conditions:
+  indic-amit:     {model: indic-speak, manifest_model: indic-speak, voice: Amit,  wav: 02_IndicSpeak_Amit_Devanagari.wav}
+  indic-kavya:    {model: indic-speak, manifest_model: indic-speak, voice: Kavya, wav: 04_IndicSpeak_Kavya_Devanagari.wav}
+  # voice is taken from the manifest configuration_id (Devanagari name), not retyped here
+  orpheus-ritika: {model: orpheus-hi,  manifest_model: orpheus-hi,  wav: 06_OrpheusHindi_Ritika_Devanagari.wav}
+pins:  # same revisions as scripts/matched_generate.py
+  indic-speak: {repo: bodhan-ai/indic-speak, revision: 76e0814f189321efe550011850cd288dae366aad}
+  orpheus-hi:  {repo: canopylabs/3b-hi-ft-research_release, revision: 70c4b32af539cac4a3e2856a6fd4fab6ff8c446b}
+  codec:       {repo: hubertsiuzdak/snac_24khz, revision: d73ad176a12188fcf4f360ba3bf2c2fbbe8f58ec}
+  whisper:     {repo: openai/whisper-large-v3, revision: 06f233fe06e710322aca913c1bc4249a0d71fce1}
+  speaker_sv:  {repo: microsoft/wavlm-base-plus-sv, revision: feb593a6c23c1cc3d9510425c29b0a14d2b07b1e}
+  embedding:   {repo: microsoft/wavlm-base-plus, revision: 4c66d4806a428f2e922ccfa1a962776e232d487b}   # M1/M2; downloaded 2026-10-29 (pytorch_model.bin 377.6 MB)
+diagnostics:
+  pca_dims: 64
+  l2: 1.0
+  permutations: 200        # projection-AUC permutation control
+  probe_permutations: 3    # probe permutation control (probes are ~1 s each)
+  m1_l2: 10.0              # M1 classifier ridge
+  shortlist_size: 6
+steering:
+  mode: all            # all positions (prompt + generated)
+  sweep1_alphas: [2, 4]
+  topk: [1, 2, 3]
+  sweep2_alphas: [0.5, 1, 2, 3, 4, 6]
+  random_draws: 3
+  test_seeds: [1234, 1235, 1236]
+  batch_size: 24
+guardrails:
+  wer_points: 0.02     # +2 points absolute vs the condition's own baseline
+  ssim_min: 0.75
+  failure_max: 0.05
+  duration_ratio: [0.5, 2.0]
