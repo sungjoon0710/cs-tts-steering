@@ -26,7 +26,7 @@ def record(row,**fields):
         'configuration_id':row['configuration_id'],'audio_sha256':row['audio']['audio_sha256'],
         'in_challenge_view':row['in_challenge_view'],**fields}
 
-def asr_speaker(rows,out,cache,include_speaker=True):
+def asr_speaker(rows,out,cache,include_speaker=True,asr_model=ASR,local_files_only=False):
     import numpy as np,torch
     from huggingface_hub import snapshot_download
     from transformers import WhisperProcessor,WhisperForConditionalGeneration,AutoFeatureExtractor,WavLMForXVector
@@ -34,11 +34,12 @@ def asr_speaker(rows,out,cache,include_speaker=True):
     torch.set_num_threads(2)
     torch.cuda.set_per_process_memory_fraction(min(.9,8*1024**3/torch.cuda.get_device_properties(0).total_memory))
     device='cuda';paths={}
-    for name,revision in ([ASR,SPEAKER] if include_speaker else [ASR]):
+    for name,revision in ([asr_model,SPEAKER] if include_speaker else [asr_model]):
         paths[name]=snapshot_download(name,revision=revision,cache_dir=str(cache),token=False,
-            allow_patterns=['model.safetensors' if name==ASR[0] else 'pytorch_model.bin','*.json','merges.txt','vocab.json'])
-    processor=WhisperProcessor.from_pretrained(paths[ASR[0]],local_files_only=True)
-    model=WhisperForConditionalGeneration.from_pretrained(paths[ASR[0]],local_files_only=True,
+            allow_patterns=['model.safetensors' if name==asr_model[0] else 'pytorch_model.bin','*.json','merges.txt','vocab.json'],
+            local_files_only=local_files_only)
+    processor=WhisperProcessor.from_pretrained(paths[asr_model[0]],local_files_only=True)
+    model=WhisperForConditionalGeneration.from_pretrained(paths[asr_model[0]],local_files_only=True,
         torch_dtype=torch.float16,attn_implementation='eager').to(device).eval()
     hypotheses=[]
     for i,row in enumerate(rows):
@@ -50,18 +51,18 @@ def asr_speaker(rows,out,cache,include_speaker=True):
                     language='hi',task='transcribe',do_sample=False,num_beams=1,max_new_tokens=440,
                     return_timestamps=True,condition_on_prev_tokens=False)
             hypothesis=processor.batch_decode(ids,skip_special_tokens=True)[0].strip()
-            hypotheses.append(record(row,status='computed_asr_proxy',hypothesis_raw=hypothesis,model=ASR[0],revision=ASR[1]))
+            hypotheses.append(record(row,status='computed_asr_proxy',hypothesis_raw=hypothesis,model=asr_model[0],revision=asr_model[1]))
         except Exception as e:
             hypotheses.append(record(row,status='extraction_failed',hypothesis_raw=None,error_type=type(e).__name__,error=str(e)[:400]))
             if len(hypotheses)>=3 and all(r['status']=='extraction_failed' for r in hypotheses[-3:]):
                 write_jsonl(out/'second_asr.jsonl',hypotheses)
                 raise RuntimeError('Three consecutive ASR extraction failures; inspect outputs before continuing') from e
         if (i+1)%25==0:
-            write_jsonl(out/'second_asr.jsonl',hypotheses);print(f'Whisper-small {i+1}/{len(rows)}',flush=True)
+            write_jsonl(out/'second_asr.jsonl',hypotheses);print(f'{asr_model[0]} {i+1}/{len(rows)}',flush=True)
     write_jsonl(out/'second_asr.jsonl',hypotheses)
     del model,processor;gc.collect();torch.cuda.empty_cache()
     if not include_speaker:
-        write_json(out/'decoding.json',{'asr_model':ASR,'language':'hi','task':'transcribe','do_sample':False,
+        write_json(out/'decoding.json',{'asr_model':asr_model,'language':'hi','task':'transcribe','do_sample':False,
             'num_beams':1,'max_new_tokens':440,'return_timestamps':True,'condition_on_prev_tokens':False,
             'truncation':False,'attention_mask':True,'batch_size':1,'sample_rate':16000,'dtype':'float16','attention':'eager',
             'peak_gpu_allocated_bytes':torch.cuda.max_memory_allocated()})
@@ -80,7 +81,7 @@ def asr_speaker(rows,out,cache,include_speaker=True):
         except Exception as e:embeddings.append(record(row,status='extraction_failed',embedding=None,error_type=type(e).__name__,error=str(e)[:400]))
         if (i+1)%25==0:write_jsonl(out/'speaker_embeddings.jsonl',embeddings);print(f'WavLM embeddings {i+1}/{len(rows)}',flush=True)
     write_jsonl(out/'speaker_embeddings.jsonl',embeddings)
-    write_json(out/'decoding.json',{'asr_model':ASR,'speaker_model':SPEAKER,'ASR':{'sample_rate':16000,'language':'hi','task':'transcribe',
+    write_json(out/'decoding.json',{'asr_model':asr_model,'speaker_model':SPEAKER,'ASR':{'sample_rate':16000,'language':'hi','task':'transcribe',
         'batch_size':1,'do_sample':False,'num_beams':1,'max_new_tokens':440,'return_timestamps':True,'condition_on_prev_tokens':False,
         'truncation':False,'attention_mask':True,'dtype':'float16','attention':'eager'},'speaker':{'sample_rate':16000,'batch_size':1,'dtype':'float32','attention_mask':True,'L2_normalized':True},
         'comparison_limit':'Legacy uses missing attention masks and potentially truncated long input; exact settings are not identical',
