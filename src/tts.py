@@ -14,11 +14,7 @@ from pathlib import Path
 
 import numpy as np
 import torch
-
-SR = 24_000
-AUDIO_BASE = 128266
-CODEBOOK_SIZE = 4096
-TOKENS_PER_SEC = 82
+from src.tts_settings import SR, AUDIO_BASE, CODEBOOK_SIZE, TOKENS_PER_SEC, token_budget
 
 LOCAL = Path(os.environ.get("LOCAL_SP", f"/local/speech/users/{getpass.getuser()}"))
 SHARED = Path("/local/speech/users/sp4050")
@@ -35,11 +31,6 @@ def cached_snapshot(repo: str) -> Path:
     """Local snapshot dir of a cached HF repo (snapshot_download() rejects it because some files were skipped)."""
     d = hf_home() / "hub" / ("models--" + repo.replace("/", "--"))
     return d / "snapshots" / (d / "refs/main").read_text().strip()
-
-
-def token_budget(text: str) -> int:
-    # ~12 chars/s of speech, min 4 s, 2x headroom
-    return int(TOKENS_PER_SEC * max(4, len(text) / 12) * 2)
 
 
 def snac_codes(ids: list[int], device) -> list[torch.Tensor]:
@@ -77,9 +68,9 @@ class IndicSpeak:
     name = "indic-speak"
     decoding = dict(temperature=0.6, top_p=0.9, top_k=50, repetition_penalty=1.2)
 
-    def __init__(self, device: str = "cuda"):
+    def __init__(self, device: str = "cuda", snapshot: str | Path | None = None):
         self.device = device
-        snap = cached_snapshot("bodhan-ai/indic-speak")
+        snap = Path(snapshot) if snapshot is not None else cached_snapshot("bodhan-ai/indic-speak")
         # vocos/best.pt is a pickle that the repo loads with weights_only=False; refuse if it holds anything but plain data
         torch.load(snap / "vocos/best.pt", map_location="cpu", weights_only=True)
         sys.path.insert(0, str(snap))
@@ -88,11 +79,11 @@ class IndicSpeak:
         self._build_prompt = inference.build_prompt
 
     @torch.no_grad()
-    def __call__(self, text: str, voice: str, seed: int):
+    def __call__(self, text: str, voice: str, seed: int, max_new_tokens: int | None = None):
         torch.manual_seed(seed)
         tts = self.tts
         prompt = self._build_prompt(tts.tok, text, voice)
-        max_new = token_budget(text)
+        max_new = token_budget(text) if max_new_tokens is None else max_new_tokens
         ids = torch.tensor([prompt], device=self.device)
         t0 = time.time()
         gen = tts.lm.generate(
@@ -114,23 +105,25 @@ class OrpheusHindi:
     START_HUMAN, END_TEXT, END_HUMAN = 128259, 128009, 128260
     START_SPEECH, END_SPEECH = 128257, 128258
 
-    def __init__(self, device: str = "cuda"):
+    def __init__(self, device: str = "cuda", snapshot: str | Path | None = None,
+                 codec_snapshot: str | Path | None = None):
         from snac import SNAC
         from transformers import AutoModelForCausalLM, AutoTokenizer
 
         self.device = device
-        snap = cached_snapshot(self.repo)
+        snap = Path(snapshot) if snapshot is not None else cached_snapshot(self.repo)
         self.tok = AutoTokenizer.from_pretrained(snap)
         self.lm = AutoModelForCausalLM.from_pretrained(
             snap, dtype=torch.bfloat16, attn_implementation="sdpa").to(device).eval()
-        self.snac = SNAC.from_pretrained("hubertsiuzdak/snac_24khz").to(device).eval()
+        self.snac = SNAC.from_pretrained(str(codec_snapshot) if codec_snapshot is not None
+                                        else "hubertsiuzdak/snac_24khz").to(device).eval()
 
     @torch.no_grad()
-    def __call__(self, text: str, voice: str, seed: int):
+    def __call__(self, text: str, voice: str, seed: int, max_new_tokens: int | None = None):
         torch.manual_seed(seed)
         body = f"{voice}: {text}" if voice and voice != "none" else text
         prompt = [self.START_HUMAN] + self.tok(body).input_ids + [self.END_TEXT, self.END_HUMAN]
-        max_new = token_budget(text)
+        max_new = token_budget(text) if max_new_tokens is None else max_new_tokens
         ids = torch.tensor([prompt], device=self.device)
         t0 = time.time()
         gen = self.lm.generate(
