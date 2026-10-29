@@ -187,7 +187,8 @@ Before the formal blind test, team members (Hindi--English bilinguals) listened 
 \begin{itemize}
 \item \textbf{Indic-Amit:} steering makes the voice sound \emph{different}, but not necessarily more naturalistic. This fits the acoustics: Amit has the largest pitch shift ($+4.6$\,st on average, about $+10$\,st in one of the five side-by-side examples) and the lowest S-SIM.
 \item \textbf{Orpheus-Ritika:} steering makes the output sound \emph{a bit more naturalistic}. This is notable because Orpheus had the smallest objective gain (M1) and failed the guardrails. Its pitch shift went the other way ($-1.9$\,st, toward the natural pool's mean) and it gained pauses.
-\item \textbf{Indic-Kavya:} no specific feedback yet.
+\item \textbf{Indic-Kavya:} no voice-specific feedback yet.
+\item \textbf{Indic-Speak pronunciation (both voices):} a native Hindi-speaking labmate noted that some vowel sounds are still missing or imperfect in the Indic-Speak output. This is a property of the input text rather than of steering, and steering does not fix it. A likely cause is the transcript chain (\S\ref{sec:transcripts}): romanization does not mark vowel length, and the transliteration step can then drop or shorten vowel signs. For example, romanized ``kam'' could be transliterated with a short vowel (\emph{kam}) where the long vowel (\emph{k\=am}, ``work'') was meant. The model reads the vowels it is given.
 \end{itemize}
 
 \subsection{Go/no-go}
@@ -229,7 +230,7 @@ The external classifier (M1) can be satisfied by moving toward any of these, whi
 \paragraph{Imperfect transcripts.}\label{sec:transcripts} The text used for both the TTS inputs and teacher forcing went through a lossy chain: speech $\to$ romanized Hindi/English transcript $\to$ machine-transliterated Devanagari/English. The romanized step loses what romanization cannot express, such as vowel length, retroflex and dental contrasts, nasalization, and hesitations or repairs that were not written down. The transliteration step guesses spellings from an ambiguous romanization and makes errors; it can also mislabel the language of a word. As a result:
 \begin{itemize}
 \item The ``same transcript'' pairing is only approximate. When natural audio is teacher-forced under a text that does not match what was actually said, part of the activation difference and part of the twofold NLL gap may reflect this text--audio mismatch rather than naturalness. This adds a fourth confound to $v$.
-\item The TTS models were given inputs with spelling errors, which limits how natural even the steered output can sound.
+\item The TTS models were given inputs with spelling errors, which limits how natural even the steered output can sound. A native Hindi-speaking labmate heard missing or imperfect vowels in the Indic-Speak output, consistent with vowel length lost in romanization and transliteration (\S\ref{sec:informal}).
 \item WER (0.70 even for natural speech) and the paired comparisons M2 and M3 are measured against imperfect references.
 \end{itemize}
 
