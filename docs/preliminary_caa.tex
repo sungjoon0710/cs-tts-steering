@@ -21,7 +21,7 @@
 \maketitle
 
 \begin{abstract}
-We tested whether contrastive activation addition (CAA), following CoCoEmo (Wang et al., ICML 2026), can make Hindi--English code-switched TTS output sound more like natural speech. We built a steering vector $v=\bar h_{\text{natural}}-\bar h_{\text{synthetic}}$ from 76 training transcripts. Each transcript has a natural TV recording and default TTS output. We extracted the vector in three conditions: Indic-Speak with voice Amit, Indic-Speak with voice Kavya, and Orpheus Hindi with voice Ritika. A linear natural-vs-synthetic direction exists in every condition: the held-out projection AUC is $\approx1.0$, against a permutation 95th percentile of $0.62$. Adding it to attention outputs at small strength ($\astar=1$) is causal: it moves the model's internal representation and an external natural-vs-TTS classifier in the intended direction, beyond random vectors of the same norm. However, it does \emph{not} bring the output closer to the paired natural recording, in embedding similarity or in prosody. The acoustic changes are mostly a shift in global pitch level and pausing toward the TV speakers. All three conditions are therefore \textbf{no-go on the pre-registered objective criteria}. Indic-Kavya is the most promising: it is the only condition that passes all guardrails and shows a symmetric $\pm v$ effect. Indic-Speak is more steerable than Orpheus. Blind listening is pending.
+We tested whether contrastive activation addition (CAA), following CoCoEmo (Wang et al., ICML 2026), can make Hindi--English code-switched TTS output sound more like natural speech. We built a steering vector $v=\bar h_{\text{natural}}-\bar h_{\text{synthetic}}$ from 76 training transcripts. Each transcript has a natural TV recording and default TTS output. We extracted the vector in three conditions: Indic-Speak with voice Amit, Indic-Speak with voice Kavya, and Orpheus Hindi with voice Ritika. A linear natural-vs-synthetic direction exists in every condition: the held-out projection AUC is $\approx1.0$, against a permutation 95th percentile of $0.62$. Adding it to attention outputs at small strength ($\astar=1$) is causal: it moves the model's internal representation and an external natural-vs-TTS classifier in the intended direction, beyond random vectors of the same norm. However, it does \emph{not} bring the output closer to the paired natural recording, in embedding similarity or in prosody. The acoustic changes are mostly a shift in global pitch level and pausing toward the TV speakers. All three conditions are therefore \textbf{no-go on the pre-registered objective criteria}. Indic-Kavya is the most promising: it is the only condition that passes all guardrails and shows a symmetric $\pm v$ effect. Indic-Speak is more steerable than Orpheus. Informal listening by the team does not follow the objective ranking: steered Indic-Amit sounds \emph{different} but not clearly more natural, while steered Orpheus-Ritika sounds somewhat \emph{more} natural. The formal blind test is pending. All results are limited by imperfect transcripts: the Devanagari/English inputs were derived from speech via a romanized transcription and then machine transliteration, losing information at each step.
 \end{abstract}
 
 \section{Motivation and question}
@@ -30,7 +30,7 @@ Speech-LM TTS systems read code-switched Hinglish intelligibly but sound read-al
 \section{Setup}
 
 \subsection{Data}
-We used 100 code-switched MaSaC utterances (\texttt{Listening\_Examples\_100}). Each has a natural TV-show recording (6 speakers, about 65\% male, stereo 44.1\,kHz) and default TTS output for the same mixed Devanagari/English transcript. The transcripts are machine-transliterated and contain spelling errors. We dropped five utterances whose generation hit the token cap (4 Orpheus, 1 Amit) from \emph{all} conditions. The remaining 95 were split at the utterance level into 76 train (16 of which form a dev subset for tuning) and 19 test, with seed 20261029. All conditions share the split. The only audio processing was mixing to mono and resampling to 24\,kHz.
+We used 100 code-switched MaSaC utterances (\texttt{Listening\_Examples\_100}). Each has a natural TV-show recording (6 speakers, about 65\% male, stereo 44.1\,kHz) and default TTS output for the same mixed Devanagari/English transcript. The transcripts were produced in two lossy steps. First, the speech was transcribed into romanized Hindi/English. Second, that romanized text was machine-transliterated into Devanagari for Hindi words, with English left in Latin script. Each step lost information (\S\ref{sec:transcripts}), and the final inputs contain spelling errors. We dropped five utterances whose generation hit the token cap (4 Orpheus, 1 Amit) from \emph{all} conditions. The remaining 95 were split at the utterance level into 76 train (16 of which form a dev subset for tuning) and 19 test, with seed 20261029. All conditions share the split. The only audio processing was mixing to mono and resampling to 24\,kHz.
 
 \subsection{Conditions}
 \begin{center}
@@ -182,6 +182,14 @@ Speech also gets slightly slower, with more and longer pauses ($+0.3$ to $+0.7$ 
 \subsection{Three-way comparison}
 On the same 19 utterances, the gains in M1 differ by condition (Friedman $\chi^2=12.7$, $p=0.0017$): Amit $\ge$ Kavya $>$ Orpheus. Amit vs.\ Orpheus has $p=0.003$, Kavya vs.\ Orpheus $p=0.016$, and Amit vs.\ Kavya $p=0.066$. Gains in M2 ($p=0.53$) and M3 ($p=0.37$) do not differ. Indic-Speak is more steerable along $v$ than Orpheus, and its two voices respond alike. Orpheus has the weakest baseline and the noisiest response, and it is the only condition where $-v$ did not reverse M1.
 
+\subsection{Informal listener feedback}\label{sec:informal}
+Before the formal blind test, team members (Hindi--English bilinguals) listened to unsteered and steered clips. This feedback is verbal and informal: not blinded, no fixed protocol, and no ratings. It should be read as a pointer for the formal test, not as a result.
+\begin{itemize}
+\item \textbf{Indic-Amit:} steering makes the voice sound \emph{different}, but not necessarily more naturalistic. This fits the acoustics: Amit has the largest pitch shift ($+4.6$\,st on average, about $+10$\,st in one of the five side-by-side examples) and the lowest S-SIM.
+\item \textbf{Orpheus-Ritika:} steering makes the output sound \emph{a bit more naturalistic}. This is notable because Orpheus had the smallest objective gain (M1) and failed the guardrails. Its pitch shift went the other way ($-1.9$\,st, toward the natural pool's mean) and it gained pauses.
+\item \textbf{Indic-Kavya:} no specific feedback yet.
+\end{itemize}
+
 \subsection{Go/no-go}
 \begin{table}[h]
 \centering
@@ -197,7 +205,8 @@ Criterion & Indic-Amit & Indic-Kavya & Orpheus-Ritika \\
 2b. M2 or M3 improves vs.\ $\alpha=0$ and random & fail & fail (M3 worse) & fail \\
 2c. $-v$ reverses the effect & partial & pass (M1) & fail \\
 3. Guardrails on test & fail (WER/CER$^\dagger$) & pass & fail (CER, failures) \\
-4. Listeners prefer steered & pending & pending & pending \\
+4. Listeners prefer steered (formal test) & pending & pending & pending \\
+\quad Informal team feedback (\S\ref{sec:informal}) & different, not more natural & -- & somewhat more natural \\
 \midrule
 \textbf{Objective verdict} & \textbf{no-go} & \textbf{no-go (best candidate)} & \textbf{no-go} \\
 \bottomrule
@@ -215,13 +224,22 @@ Criterion & Indic-Amit & Indic-Kavya & Orpheus-Ritika \\
 \end{enumerate}
 The external classifier (M1) can be satisfied by moving toward any of these, which explains why M1 rises while M2 and M3 do not. Our result differs from CoCoEmo, where separability predicted steerability. There, the contrast was matched on speaker and transcript, so the direction isolated the target attribute. Here, separation is trivially high everywhere, and the most separable residual sites are the least steerable.
 
-\paragraph{Implication.} The bottleneck is the contrast data, not the mechanism. A cleaner contrast is the next step before scaling up.
+\paragraph{Objective metrics vs.\ listeners.} The informal feedback runs against the objective ranking. Amit moved most on M1 but was heard as merely different. Orpheus moved least but was heard as somewhat more natural. A large shift in voice and pitch is easy for a natural-vs-TTS classifier to reward, but it is not what makes speech sound natural. A smaller shift in pitch level and pausing, as in Orpheus, may be. The paired-clip metrics (M2, M3) are also weakened by the transcript problem below. Together this suggests that our objective metrics are not yet good proxies for perceived naturalness. Orpheus should not be dropped on objective grounds alone, and the formal blind test carries more weight than the objective verdict.
+
+\paragraph{Imperfect transcripts.}\label{sec:transcripts} The text used for both the TTS inputs and teacher forcing went through a lossy chain: speech $\to$ romanized Hindi/English transcript $\to$ machine-transliterated Devanagari/English. The romanized step loses what romanization cannot express, such as vowel length, retroflex and dental contrasts, nasalization, and hesitations or repairs that were not written down. The transliteration step guesses spellings from an ambiguous romanization and makes errors; it can also mislabel the language of a word. As a result:
+\begin{itemize}
+\item The ``same transcript'' pairing is only approximate. When natural audio is teacher-forced under a text that does not match what was actually said, part of the activation difference and part of the twofold NLL gap may reflect this text--audio mismatch rather than naturalness. This adds a fourth confound to $v$.
+\item The TTS models were given inputs with spelling errors, which limits how natural even the steered output can sound.
+\item WER (0.70 even for natural speech) and the paired comparisons M2 and M3 are measured against imperfect references.
+\end{itemize}
+
+\paragraph{Implication.} The bottleneck is the contrast data, not the mechanism. Cleaner contrasts and verified transcripts are the next step before scaling up.
 
 \section{Limitations and deviations from the plan}
 \begin{itemize}
 \item The test set is small: 19 utterances, 3 seeds, and one random split.
-\item WER is noisy against machine-transliterated references; even natural speech scores 0.70.
-\item Human listening is not done yet. The token-cap clips were excluded but not listened to.
+\item Transcripts are imperfect: speech was transcribed to romanized Hindi/English and then machine-transliterated to Devanagari/English, losing information at each step (\S\ref{sec:transcripts}). This affects the contrast itself, the TTS inputs, WER (0.70 even for natural speech), M2 and M3.
+\item The formal blind listening test is not done yet; listener evidence so far is informal team feedback (\S\ref{sec:informal}). The token-cap clips were excluded but not listened to.
 \item M1 uses the classifier logit, because $P(\text{natural})$ saturates.
 \item The failure guardrail was relaxed to $\max(5\%,\text{own baseline})$ because Orpheus's dev baseline failed 12--19\%. It was applied the same way to all conditions.
 \item Sweep~1 ranked sites with a usability filter. The strict selection rule was applied unchanged in the final step.
@@ -233,7 +251,8 @@ The external classifier (M1) can be satisfied by moving toward any of these, whi
 
 \section{Next steps}
 \begin{enumerate}
-\item \textbf{Blind listening} (\S\ref{sec:listening}). Run it first, to decide whether Indic-Kavya passes criterion~4.
+\item \textbf{Blind listening} (\S\ref{sec:listening}). Run it first, to decide criterion~4 for all three conditions. The informal feedback makes Orpheus-Ritika worth testing despite its objective result, and Indic-Kavya has no listener feedback yet.
+\item \textbf{Better transcripts.} Have bilingual annotators verify or correct the Devanagari/English inputs directly against the audio, then re-extract $v$. This tests how much of the contrast and the NLL gap comes from text--audio mismatch.
 \item \textbf{Cleaner contrasts.} Options:
   \begin{itemize}
   \item natural vs.\ natural speech from the \emph{same} speaker in different speaking styles;
