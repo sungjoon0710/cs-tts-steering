@@ -113,6 +113,59 @@ def test_steerer_rescales_and_leaves_unsteered_rows():
     assert not torch.allclose(steered[0], base[0])
 
 
+# ---------------------------------------------------------------- caa_pt: Orpheus Hindi pretrained condition
+def _fake_orpheus(kind="orpheus-hi-pt"):
+    from src.steering import SpeechLM
+    from src.tts import OrpheusHindi
+    m = object.__new__(SpeechLM)
+    m.kind, m.base, m.end_speech, m.dedup = kind, AUDIO_BASE, OrpheusHindi.END_SPEECH, False
+
+    class Tok:  # deterministic stand-in tokenizer: one id per character, bos first
+        def __call__(self, text):
+            return type("E", (), {"input_ids": [128000] + [1000 + (ord(c) % 5000) for c in text]})()
+    m.tok, m._w = Tok(), OrpheusHindi
+    return m
+
+
+def test_pt_prompt_is_text_only_and_matches_tts_rule():
+    m = _fake_orpheus()
+    text = "Oh my God! कैसी हालत है"
+    assert m.prompt(text, "none") == [128259] + m.tok(text).input_ids + [128009, 128260]
+    assert m.prompt(text, "ऋतिका") == [128259] + m.tok(f"ऋतिका: {text}").input_ids + [128009, 128260]
+
+
+def test_pt_teacher_forcing_prefix_slice_and_end():
+    from src.steering import ORPHEUS_SPEECH_PREFIX
+    m = _fake_orpheus()
+    assert m.speech_prefix() == [128261, 128257] == list(ORPHEUS_SPEECH_PREFIX)
+    audio = codes_to_tokens(*_codes(3, seed=2), AUDIO_BASE, dedup=False)
+    ids, (a0, a1) = m.tf_sequence("hello", "none", audio)
+    assert ids[a0 - 2:a0] == [128261, 128257] and ids[a0:a1] == audio and ids[a1:] == [128258]
+
+
+def test_pt_generated_audio_parsing_round_trips_through_snac_codes():
+    from src.tts import snac_codes
+    m = _fake_orpheus()
+    c0, c1, c2 = _codes(12, seed=3)
+    audio = codes_to_tokens(c0, c1, c2, AUDIO_BASE, dedup=False)
+    new = [128261, 128257] + audio  # what PT emits before end-of-speech (checked on every real PT generation)
+    got = m.audio_tokens(new)
+    assert got == audio
+    for x, y in zip(snac_codes(got, "cpu"), (c0, c1, c2)):
+        assert np.array_equal(x[0].numpy(), y)
+
+
+def test_pt_config_reuses_pilot_split_and_pins_pt_revision():
+    from src.caa_pilot import REPO, conditions, load_config, load_data
+    cfg = load_config(REPO / "configs/caa_pt/pt.yaml")
+    assert conditions(cfg) == ["orpheus-pt"]
+    spec = cfg["conditions"]["orpheus-pt"]
+    assert spec["model"] == "orpheus-hi-pt" and spec["voice"] == "none" and "wav" not in spec
+    assert cfg["pins"]["orpheus-hi-pt"]["revision"].startswith("b813fee6")
+    assert cfg["split_file"] == "configs/caa_pilot/split.json"
+    assert cfg["diagnostics"]["shortlist_sites"] == ["attn_mean"]
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

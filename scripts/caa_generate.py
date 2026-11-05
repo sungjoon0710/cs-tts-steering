@@ -3,6 +3,12 @@
   plan  --run RUN --stage {sweep1,sweep2,test}   writes RUN/jobs/<stage>.jsonl (no text; ids + steering spec)
   run   --run RUN --stage S --condition C        generates missing clips; appends RUN/generations.jsonl
 
+Extra stages for --config configs/caa_pt/pt.yaml:
+  base    alpha=0 for all 100 utterances (PT_base; the train clips are also the CAA negatives)
+  final   v at alpha* for all 100 utterances (PT_steered) + random-vector control(s) on the test utterances
+With `steering.share_base` the sweeps plan no alpha=0 jobs: at batch size 1 and a fixed seed the alpha=0 clip
+is the stage-`base` clip. `--shard k/n` splits a stage across GPUs (each clip is independent at batch size 1).
+
 Steering spec per job: list of {layer, site, pool, vec, alpha} with vec in {v, neg, rand0, rand1, ...}.
 Random vectors: Gaussian direction scaled to ||v|| at the same site, seeded by (condition, site, draw).
 Batches mix jobs of one condition and one seed; the batch seed is derived from the job ids, so a clip
@@ -19,10 +25,10 @@ from pathlib import Path
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from src.caa_pilot import (append_jsonl, condition_voices, hf_snapshot, load_config, load_data, load_split,
-                           read_jsonl, stable_id, write_json)
+from src.caa_pilot import (append_jsonl, condition_voices, conditions, config_arg, hf_snapshot, load_config,
+                           load_data, load_split, read_jsonl, stable_id, write_json)
 
-CONDS = ("indic-amit", "indic-kavya", "orpheus-ritika")
+CONDS = ("indic-amit", "indic-kavya", "orpheus-ritika")  # pilot default; replaced from --config in __main__
 
 
 def job(stage, cond, uid, seed, label, steer):
@@ -37,12 +43,36 @@ def site_label(s):
 def plan(a, cfg):
     split = load_split()
     sc = cfg["steering"]
+    shared = sc.get("share_base", False)
     jobs = []
-    if a.stage == "sweep1":
+    if a.stage == "base":
+        everything = sorted(set(split["train"]) | set(split["test"]) | set(split["dropped_token_cap"]))
+        for cond in CONDS:
+            for uid in everything:
+                jobs.append(job("base", cond, uid, cfg["seed"], "base", []))
+    elif a.stage == "resample":  # calibration: unsteered resamples at other seeds (sampling variance of failures)
+        for cond in CONDS:
+            for uid in split["dev"]:
+                for seed in sc["resample_seeds"]:
+                    jobs.append(job("resample", cond, uid, seed, f"resample_s{seed}", []))
+    elif a.stage == "final":
+        sel = json.loads((a.run / "selection" / "selection.json").read_text())
+        everything = sorted(set(split["train"]) | set(split["test"]) | set(split["dropped_token_cap"]))
+        for cond in CONDS:
+            s = sel[cond]
+            mk = lambda vec: [dict(layer=x["layer"], site=x["site"], pool=x["pool"], vec=vec, alpha=s["alpha_star"])
+                              for x in s["sites"]]
+            for uid in everything:
+                jobs.append(job("final", cond, uid, cfg["seed"], "v_star", mk("v")))
+            for uid in split["test"]:
+                for d in range(sc["random_draws"]):
+                    jobs.append(job("final", cond, uid, cfg["seed"], f"rand{d}_star", mk(f"rand{d}")))
+    elif a.stage == "sweep1":
         shortlist = json.loads((a.run / "shortlist.json").read_text())
         for cond in CONDS:
             for uid in split["dev"]:
-                jobs.append(job("sweep1", cond, uid, cfg["seed"], "base", []))
+                if not shared:
+                    jobs.append(job("sweep1", cond, uid, cfg["seed"], "base", []))
                 for s in shortlist[cond]:
                     for al in sc["sweep1_alphas"]:
                         st = [dict(layer=s["layer"], site=s["site"], pool=s["pool"], vec="v", alpha=al)]
@@ -52,8 +82,11 @@ def plan(a, cfg):
         for cond in CONDS:
             ranked = ranking[cond]  # best first: list of {layer, site, pool}
             for uid in split["dev"]:
-                jobs.append(job("sweep2", cond, uid, cfg["seed"], "base", []))
+                if not shared:
+                    jobs.append(job("sweep2", cond, uid, cfg["seed"], "base", []))
                 for k in sc["topk"]:
+                    if shared and k == 1:  # top-1 = the best sweep1 site, already generated in sweep1
+                        continue
                     sites = ranked[:k]
                     for al in sc["sweep2_alphas"]:
                         st = [dict(layer=s["layer"], site=s["site"], pool=s["pool"], vec="v", alpha=al) for s in sites]
@@ -82,11 +115,12 @@ def plan(a, cfg):
 
 def vector_bank(run, cond, cfg):
     import torch
-    raw = torch.load(run / "vectors" / f"{cond}.pt", weights_only=True)
-    cache = {}
+    raw, cache = {}, {}
 
     def get(layer, site, pool, vec):
         key = (layer, site, pool, vec)
+        if not raw:  # lazy: the alpha=0 stage runs before any vector exists
+            raw.update(torch.load(run / "vectors" / f"{cond}.pt", weights_only=True))
         if key not in cache:
             v = raw[f"{layer}|{site}|{pool}"].float()
             if vec == "v":
@@ -112,6 +146,9 @@ def run(a, cfg):
     voice = condition_voices(cfg, utts)[a.condition]
     kind = cfg["conditions"][a.condition]["model"]
     jobs = [j for j in read_jsonl(a.run / "jobs" / f"{a.stage}.jsonl") if j["condition"] == a.condition]
+    if a.shard:
+        k, n = map(int, a.shard.split("/"))
+        jobs = [j for i, j in enumerate(sorted(jobs, key=lambda j: j["job_id"])) if i % n == k]
     log = a.run / "generations.jsonl"
     done = {r["job_id"] for r in read_jsonl(log)}
     todo = [j for j in jobs if j["job_id"] not in done]  # resumable: logged clips (incl. failures) are final
@@ -141,7 +178,9 @@ def run(a, cfg):
                     if k not in deltas:
                         deltas[k] = torch.zeros(len(batch), model.lm.config.hidden_size, device=model.device)
                     deltas[k][r] += s["alpha"] * get(s["layer"], s["site"], s["pool"], s["vec"]).to(model.device)
-            bseed = int(stable_id("batch", a.stage, a.condition, seed, [j["job_id"] for j in batch])[:8], 16)
+            # batch size 1 (caa_pt): the clip's own seed, so each clip is an independent seed-1234 sample
+            bseed = seed if len(batch) == 1 and B == 1 else \
+                int(stable_id("batch", a.stage, a.condition, seed, [j["job_id"] for j in batch])[:8], 16)
             res = generate_batch(model, rows, bseed, steerer, deltas)
             for j, (audio, info) in zip(batch, res):
                 rec = dict(j, batch_seed=bseed, model=kind, voice=voice, revision=pins[kind]["revision"],
@@ -160,7 +199,7 @@ def run(a, cfg):
             el = time.time() - t_start
             print(json.dumps(dict(cond=a.condition, stage=a.stage, done=n_done, total=len(todo), elapsed_s=round(el),
                                   batch_gen_s=res[0][1]["batch_gen_s"])), flush=True)
-    write_json(a.run / "gen" / a.stage / f"{a.condition}_completion.json",
+    write_json(a.run / "gen" / a.stage / f"{a.condition}_completion{('_' + a.shard.replace('/', 'of')) if a.shard else ''}.json",
                dict(n=len(jobs), runtime_s=round(time.time() - t_start), device=torch.cuda.get_device_name(0)))
 
 
@@ -168,10 +207,13 @@ if __name__ == "__main__":
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("action", choices=["plan", "run"])
     p.add_argument("--run", type=Path, required=True)
-    p.add_argument("--stage", choices=["sweep1", "sweep2", "test"], required=True)
-    p.add_argument("--condition", choices=CONDS)
+    p.add_argument("--stage", choices=["base", "resample", "sweep1", "sweep2", "test", "final"], required=True)
+    p.add_argument("--condition")
     p.add_argument("--batch-size", type=int)
+    p.add_argument("--shard", help="k/n: run every n-th job starting at k (sorted by job id)")
     p.add_argument("--force", action="store_true")
+    config_arg(p)
     a = p.parse_args()
-    cfg = load_config()
+    cfg = load_config(a.config)
+    CONDS = tuple(conditions(cfg))
     (plan if a.action == "plan" else run)(a, cfg)

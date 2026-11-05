@@ -1,4 +1,4 @@
-"""CAA steering for the two Llama-based speech LMs (Indic-Speak, Orpheus Hindi FT).
+"""CAA steering for the Llama-based speech LMs (Indic-Speak, Orpheus Hindi FT and Orpheus Hindi PT).
 
 - `SpeechLM`: loads a pinned model + codec, builds generation prompts and teacher-forced
   sequences (prompt + audio tokens + end-of-speech), decodes audio tokens to 24 kHz audio.
@@ -27,8 +27,22 @@ PAD_ID = 128263
 POOLS = ("last", "mean")
 
 
+# Tokens Orpheus emits between the prompt and the first audio token: <start_of_ai>, <start_of_speech>.
+# Checked on real generations for the fine-tuned model (pilot) and for the pretrained model
+# (caa_pt: every on-policy PT generation is checked again in `scripts/caa_extract.py extract`).
+ORPHEUS_SPEECH_PREFIX = (128261, 128257)
+
+
+def is_orpheus(kind: str) -> bool:
+    return kind in ("orpheus-hi", "orpheus-hi-pt")
+
+
 class SpeechLM:
-    """Model-specific glue. kind in {'indic-speak', 'orpheus-hi'}."""
+    """Model-specific glue. kind in {'indic-speak', 'orpheus-hi', 'orpheus-hi-pt'}.
+
+    'orpheus-hi-pt' is the pretrained Hindi base model (no named voices): pass voice "none" for a
+    text-only prompt, exactly as `src.tts.OrpheusHindiPretrained` does.
+    """
 
     def __init__(self, kind: str, snapshot: str | Path, codec_snapshot: str | Path, device="cuda"):
         self.kind, self.device = kind, device
@@ -45,10 +59,11 @@ class SpeechLM:
             self.dedup = True
             self.decoding = dict(w.decoding)
             self.snac = t.snac
-        elif kind == "orpheus-hi":
-            from src.tts import OrpheusHindi
+        elif is_orpheus(kind):
+            from src.tts import OrpheusHindi, OrpheusHindiPretrained
             from src.tts_settings import AUDIO_BASE
-            w = OrpheusHindi(device=device, snapshot=snapshot, codec_snapshot=codec_snapshot)
+            cls = OrpheusHindi if kind == "orpheus-hi" else OrpheusHindiPretrained
+            w = cls(device=device, snapshot=snapshot, codec_snapshot=codec_snapshot)
             self.lm, self.tok, self.snac = w.lm, w.tok, w.snac
             self._w = w
             base = self.tok.convert_tokens_to_ids("<custom_token_10>")
@@ -74,13 +89,14 @@ class SpeechLM:
         if self.kind == "indic-speak":
             return list(self._build_prompt(self.tok, text, voice))  # ends with <|start_of_speech|>
         w = self._w
-        return [w.START_HUMAN] + self.tok(f"{voice}: {text}").input_ids + [w.END_TEXT, w.END_HUMAN]
+        body = f"{voice}: {text}" if voice and voice != "none" else text  # same rule as src/tts.py
+        return [w.START_HUMAN] + self.tok(body).input_ids + [w.END_TEXT, w.END_HUMAN]
 
     def speech_prefix(self) -> list[int]:
         """Tokens the model itself emits between the prompt and the first audio token."""
         if self.kind == "indic-speak":
             return []
-        return [128261, self._w.START_SPEECH]  # <start_of_ai>, <start_of_speech> (checked on real outputs)
+        return list(ORPHEUS_SPEECH_PREFIX)
 
     def tf_sequence(self, text: str, voice: str, audio_tokens: list[int]):
         """Teacher-forced ids and the [start, end) slice of the audio-token positions."""
@@ -89,7 +105,7 @@ class SpeechLM:
         return ids, (len(head), len(head) + len(audio_tokens))
 
     def audio_tokens(self, new_ids: list[int]) -> list[int]:
-        if self.kind == "orpheus-hi" and self._w.START_SPEECH in new_ids:
+        if is_orpheus(self.kind) and self._w.START_SPEECH in new_ids:
             new_ids = new_ids[len(new_ids) - new_ids[::-1].index(self._w.START_SPEECH):]
         hi = self.base + 7 * 4096
         out = []
@@ -223,7 +239,13 @@ def generate_batch(model: SpeechLM, rows: list[dict], seed: int, steerer: Steere
         new = out[i, P:].tolist()[: r["budget"]]
         stop = next((j for j, t in enumerate(new) if t in model.eos_ids), None)
         n_tok = (stop + 1) if stop is not None else len(new)
-        audio = model.audio_tokens(new[:stop] if stop is not None else new)
+        body = new[:stop] if stop is not None else new
+        audio = model.audio_tokens(body)
+        first = next((j for j, t in enumerate(body) if model.base <= t < model.base + 7 * 4096), len(body))
         results.append((audio, dict(n_tokens=n_tok, eos=stop is not None, hit_max=stop is None,
-                                    n_audio_tokens=len(audio), batch_gen_s=round(gen_s, 3), batch_size=len(rows))))
+                                    n_audio_tokens=len(audio), batch_gen_s=round(gen_s, 3), batch_size=len(rows),
+                                    # what the model emitted before its first audio token (start-of-audio prefix)
+                                    prefix_ids=body[:min(first, 16)],
+                                    # non-audio tokens after the audio run and before the stop token (0 = clean)
+                                    trailing_nonaudio=len(body) - first - len(audio) if first < len(body) else 0)))
     return results

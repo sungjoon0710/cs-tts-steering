@@ -8,6 +8,14 @@ Feature extraction (resumable, keyed per clip; scope = natural | sweep1 | sweep2
 Analysis (CPU):
   select   dev-sweep summaries; --step 1 ranks sites for top-K; --step 2 applies the §5.2 selection rule
   test     test-set deltas, bootstrap CIs, Wilcoxon, controls, Friedman three-way comparison
+
+--config configs/caa_pt/pt.yaml (Orpheus PT follow-up) changes only what the config asks for:
+  scopes     natural covers all 100 utterances; base / final are the PT stages
+  asr        evaluation.asr_style=matched: Whisper-large-v3 through scripts/learned_evaluate.py (batch 1,
+             long-form, the partner summary's settings); also writes WavLM-SV vectors (speaker consistency)
+  acoustics  src/evaluation/expanded.py Praat features + lab terminal_v2 syllable nuclei (figure metrics)
+  M1         negatives are the PT_base clips of the train utterances (on-policy), not pre-made wavs
+  sweeps     steering.share_base: the alpha=0 rows come from stage `base`
 """
 from __future__ import annotations
 
@@ -23,10 +31,24 @@ from pathlib import Path
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from src.caa_pilot import (append_jsonl, condition_voices, hf_snapshot, load_config, load_data, load_split,
-                           read_jsonl, write_json)
+from src.caa_pilot import (append_jsonl, condition_voices, conditions, config_arg, hf_snapshot, load_config,
+                           load_data, load_split, read_jsonl, write_json)
 
-CONDS = ("indic-amit", "indic-kavya", "orpheus-ritika")
+CONDS = ("indic-amit", "indic-kavya", "orpheus-ritika")  # pilot default; replaced from --config in __main__
+SCOPES = ["natural", "sweep1", "sweep2", "test", "base", "final", "resample"]
+
+
+def generated_conds(cfg):
+    """Conditions whose synthetic class is generated in the run (no pre-made wav)."""
+    return [c for c in CONDS if not cfg["conditions"][c].get("wav")]
+
+
+def all_utterances(cfg):
+    split = load_split()
+    keep = set(split["train"]) | set(split["test"])
+    if cfg.get("evaluation"):  # caa_pt: the 5 token-cap utterances are generated (listening) and evaluated too
+        keep |= set(split["dropped_token_cap"])
+    return sorted(keep)
 PROSODY_FEATS = ["f0_median_st", "f0_std_st", "f0_range_st", "intensity_std_db", "rate_wps",
                  "pause_count", "pause_total_s"]
 
@@ -43,14 +65,15 @@ def natural_24k(run, uid, utts):
 
 
 def items(run, scope, cfg, utts):
-    split = load_split()
-    keep = sorted(set(split["train"]) | set(split["test"]))
+    keep = all_utterances(cfg)
     if scope == "natural":
         out = []
         for uid in keep:
             out.append(dict(key=f"nat|{uid}", path=str(natural_24k(run, uid, utts)), utterance_id=uid,
                             condition="natural"))
             for c in CONDS:
+                if c in generated_conds(cfg):
+                    continue
                 out.append(dict(key=f"orig|{c}|{uid}", path=utts[uid]["synthetic"][c]["wav"], utterance_id=uid,
                                 condition=c))
         return out
@@ -74,6 +97,48 @@ def load16k(path):
 
 
 # ---------------------------------------------------------------------------- extractors
+def asr_matched(a, cfg, utts, todo):
+    """Whisper-large-v3 + WavLM-SV exactly as scripts/learned_evaluate.py (used by matched_evaluate.py)."""
+    import hashlib
+    import os
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import learned_evaluate
+    content_proxies = _expanded_module().content_proxies
+    pin = cfg["pins"]["whisper"]
+    if tuple(cfg["pins"]["speaker_sv"].values()) != learned_evaluate.SPEAKER:
+        raise SystemExit("speaker_sv pin differs from learned_evaluate.SPEAKER")
+    rows = [dict(generation_id=t["key"], utterance_id=t["utterance_id"], configuration_id=t["condition"],
+                 in_challenge_view=False, source_audio_path=t["path"],
+                 audio=dict(audio_sha256=hashlib.sha256(Path(t["path"]).read_bytes()).hexdigest())) for t in todo]
+    n = len(list((a.run / "metrics" / "asr_matched").glob("batch*")))
+    out = a.run / "metrics" / "asr_matched" / f"batch{n + 1:04}_{a.scope}"
+    out.mkdir(parents=True)
+    cache = Path(os.environ["HF_HOME"]) / "hub"
+    # Offline: huggingface_hub>=1 rejects our partially downloaded snapshots (we skipped unused index files), so
+    # resolve the pinned revisions to their local snapshot dirs; everything else in asr_speaker is unchanged.
+    import huggingface_hub
+    real = huggingface_hub.snapshot_download
+    huggingface_hub.snapshot_download = lambda name, revision, **kw: str(hf_snapshot(name, revision))
+    try:
+        learned_evaluate.asr_speaker(rows, out, cache, include_speaker=True, asr_model=(pin["repo"], pin["revision"]),
+                                     local_files_only=True)
+    finally:
+        huggingface_hub.snapshot_download = real
+    hyps = {r["generation_id"]: r for r in read_jsonl(out / "second_asr.jsonl")}
+    for r in read_jsonl(out / "speaker_embeddings.jsonl"):
+        append_jsonl(a.run / "metrics" / "speaker_sv.jsonl", dict(key=r["generation_id"], audio_sha256=r["audio_sha256"],
+                                                                   status=r["status"], sv=r.get("embedding")))
+    for t in todo:
+        h = hyps.get(t["key"], {}).get("hypothesis_raw")
+        s, _, roman, _ = content_proxies(utts[t["utterance_id"]]["Devanagari"], h, {})
+        append_jsonl(a.run / "metrics" / "asr.jsonl", dict(
+            key=t["key"], hyp=h, status=s["status"], wer=s["wer"], cer=s["cer"], ref_words=s.get("reference_words"),
+            word_errors=None if s["wer"] is None else round(s["wer"] * s["reference_words"]),
+            ref_chars=s.get("reference_characters"), char_errors=s.get("character_errors"),
+            uroman_wer=roman.get("wer"), asr_word_count=len(s.get("hypothesis_tokens", [])) if h is not None else None,
+            normalization=s.get("normalization_version"), model=pin, style="learned_evaluate.asr_speaker"))
+
+
 def asr(a, cfg, utts):
     import torch
     from transformers import WhisperForConditionalGeneration, WhisperProcessor
@@ -83,6 +148,8 @@ def asr(a, cfg, utts):
     print(f"asr {a.scope}: {len(todo)} to do", flush=True)
     if not todo:
         return
+    if cfg.get("evaluation", {}).get("asr_style") == "matched":
+        return asr_matched(a, cfg, utts, todo)
     pin = cfg["pins"]["whisper"]
     snap = hf_snapshot(pin["repo"], pin["revision"])
     proc = WhisperProcessor.from_pretrained(snap)
@@ -213,6 +280,67 @@ def prosody(a, cfg, utts):
             print(f"prosody {n + 1}/{len(todo)}", flush=True)
 
 
+def _expanded_module():
+    """src/evaluation/expanded.py imports scipy at module level, which envs/tts lacks. scipy is only used there
+    for eGeMAPS resampling (not run: egemaps=False) and F0 skew/kurtosis (not reported). Provide numpy versions
+    of exactly those (scipy defaults: bias=True, Fisher kurtosis) so every reported feature is the repo's code."""
+    try:
+        import scipy  # noqa: F401
+    except ImportError:
+        import types
+        sc, sig, sts = (types.ModuleType(n) for n in ("scipy", "scipy.signal", "scipy.stats"))
+
+        def resample_poly(*_, **__):
+            raise RuntimeError("scipy stub: resample_poly unavailable (eGeMAPS path disabled)")
+
+        def skew(x):
+            x = np.asarray(x, float); m = x - x.mean()
+            return float(np.mean(m ** 3) / np.mean(m ** 2) ** 1.5)
+
+        def kurtosis(x):
+            x = np.asarray(x, float); m = x - x.mean()
+            return float(np.mean(m ** 4) / np.mean(m ** 2) ** 2 - 3)
+        sig.resample_poly, sts.skew, sts.kurtosis = resample_poly, skew, kurtosis
+        sc.signal, sc.stats, sc.__stub__ = sig, sts, True
+        sys.modules.update({"scipy": sc, "scipy.signal": sig, "scipy.stats": sts})
+    from src.evaluation import expanded
+    return expanded
+
+
+def acoustics(a, cfg, utts):
+    """Figure metrics, same code as scripts/matched_evaluate.py acoustics(): expanded_audio (Praat F0, pauses,
+    RMS, jitter/shimmer/HNR) and the lab's terminal_v2 syllable-nucleus detector."""
+    import soundfile as sf
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from lab_rate_evaluate import detector_body, measure
+    expanded = _expanded_module()
+    ev = cfg["evaluation"]
+    body = detector_body(Path(ev["lab_script"]).read_bytes(), ev["nuclei_detector"])
+    out = a.run / "metrics" / "acoustics.jsonl"
+    todo = pending(out, items(a.run, a.scope, cfg, utts))
+    print(f"acoustics {a.scope}: {len(todo)} to do (scipy stub: {getattr(sys.modules.get('scipy'), '__stub__', False)})",
+          flush=True)
+    keep = ["status", "audio_sha256", "duration_s", "rms_dbfs", "f0_median_hz", "f0_std_st", "f0_range_st",
+            "voiced_frame_fraction", "internal_pause_count", "internal_pause_total_s", "internal_pause_proportion",
+            "silence_proportion", "articulation_time_estimate_s", "intensity_praat_std_db", "lab_voice_quality",
+            "expanded_version"]
+    for n, t in enumerate(todo):
+        au = expanded.expanded_audio(t["path"], channel_policy="mean", egemaps=False)
+        rate = {"status": "not_extractable", "nuclei_per_s": None}
+        if au["status"] == "computed_unvalidated":
+            y, sr = sf.read(t["path"], dtype="float64")
+            try:
+                rate = measure(y, sr, body, ev["nuclei_detector"])
+            except Exception as e:
+                rate = {"status": "extraction_failed", "error_type": type(e).__name__, "nuclei_per_s": None}
+        append_jsonl(out, dict(key=t["key"], audio={k: au.get(k) for k in keep},
+                               nuclei_rate={k: rate.get(k) for k in ("status", "detector_version", "detected_nuclei",
+                                                                    "detected_sounding_s", "nuclei_per_s",
+                                                                    "nuclei_per_detected_sounding_s")}))
+        if (n + 1) % 50 == 0:
+            print(f"acoustics {n + 1}/{len(todo)}", flush=True)
+
+
 def project(a, cfg, utts):
     """Mechanistic M1 check: unsteered teacher-forced projection onto unit v at shortlisted sites."""
     import torch
@@ -267,13 +395,15 @@ def m1_classifier(run, cfg, m):
     def X(keys):
         return np.array([emb[k]["wavlm"] for k in keys], np.float64)
     tr_nat = [f"nat|{u}" for u in split["train"]]
-    tr_syn = [f"orig|{c}|{u}" for u in split["train"] for c in CONDS]
+    syn_keys = synthetic_keys(run, cfg)  # {cond: {uid: key}}
+    tr_syn = [syn_keys[c][u] for c in CONDS for u in split["train"] if u in syn_keys[c] and syn_keys[c][u] in emb]
     Xtr = np.concatenate([X(tr_nat), X(tr_syn)])
     ytr = np.r_[np.ones(len(tr_nat)), np.zeros(len(tr_syn))]
     st = Standardize().fit(Xtr)
-    # class-balanced by duplicating naturals x3 (equal total weight)
-    Xb = np.concatenate([st(X(tr_nat))] * 3 + [st(X(tr_syn))])
-    yb = np.r_[np.ones(3 * len(tr_nat)), np.zeros(len(tr_syn))]
+    # class-balanced: duplicate naturals so both classes carry (about) equal total weight
+    rep = max(1, round(len(tr_syn) / len(tr_nat)))
+    Xb = np.concatenate([st(X(tr_nat))] * rep + [st(X(tr_syn))])
+    yb = np.r_[np.ones(rep * len(tr_nat)), np.zeros(len(tr_syn))]
     w, b = fit_logreg(Xb, yb, l2=float(cfg["diagnostics"].get("m1_l2", 10.0)))
 
     def score(keys):  # log-odds of natural (P saturates near 0/1, so deltas use the logit)
@@ -281,8 +411,10 @@ def m1_classifier(run, cfg, m):
     sig = lambda z: 1 / (1 + np.exp(-z))
     te_nat = score([f"nat|{u}" for u in split["test"]])
     info = dict(train_n_nat=len(tr_nat), train_n_syn=len(tr_syn), l2=float(cfg["diagnostics"].get("m1_l2", 10.0)))
+    info["negatives"] = {c: ("on-policy stage " + cfg["conditions"][c]["negatives_stage"]) if c in generated_conds(cfg)
+                         else "pre-made wav" for c in CONDS}
     for c in CONDS:
-        s = score([f"orig|{c}|{u}" for u in split["test"]])
+        s = score([syn_keys[c][u] for u in split["test"] if u in syn_keys[c] and syn_keys[c][u] in emb])
         info[f"heldout_auc_natural_vs_{c}"] = auc(te_nat, s)
         info[f"heldout_mean_p_{c}"] = float(sig(s).mean())
         info[f"heldout_mean_logit_{c}"] = float(s.mean())
@@ -290,6 +422,21 @@ def m1_classifier(run, cfg, m):
     info["heldout_mean_logit_natural"] = float(te_nat.mean())
     info["score"] = "M1 = classifier logit (log-odds natural); M1_p = P(natural)"
     return score, info
+
+
+def synthetic_keys(run, cfg):
+    """Metric keys of each condition's unsteered synthetic clip per utterance (pre-made wav or stage `base`)."""
+    out = {c: {} for c in CONDS}
+    gen = generated_conds(cfg)
+    for g in read_jsonl(run / "generations.jsonl"):
+        c = g["condition"]
+        if c in gen and g["stage"] == cfg["conditions"][c]["negatives_stage"] and g["label"] == "base" \
+                and g["status"] == "generated":
+            out[c][g["utterance_id"]] = g["job_id"]
+    for c in CONDS:
+        if c not in gen:
+            out[c] = {u: f"orig|{c}|{u}" for u in all_utterances(cfg)}
+    return out
 
 
 def m3_distance(m, nat_iqr, key, uid):
@@ -313,7 +460,22 @@ def natural_iqr(m, uids):
 
 def clip_table(run, cfg, stage, m, score, nat_iqr):
     """One row per generated clip with all metrics; baseline-relative fields filled per (cond, utt, seed)."""
-    gens = [g for g in read_jsonl(run / "generations.jsonl") if g["stage"] == stage]
+    allg = read_jsonl(run / "generations.jsonl")
+    gens = [g for g in allg if g["stage"] == stage]
+    plan = run / "jobs" / f"{stage}.jsonl"
+    if plan.exists():  # only the stage's current plan (a re-planned stage keeps its old clips in the log)
+        planned = {j["job_id"] for j in read_jsonl(plan)}
+        gens = [g for g in gens if g["job_id"] in planned]
+    if cfg["steering"].get("share_base") and stage != "base":  # alpha=0 rows = stage-base clips of the same utterances
+        uids = {g["utterance_id"] for g in gens}
+        gens += [g for g in allg if g["stage"] == "base" and g["label"] == "base" and g["utterance_id"] in uids]
+    if stage == "sweep2" and cfg["steering"].get("share_base"):  # top-1 = best sweep1 site, from sweep1
+        ranked = json.loads((run / "selection" / "sweep1_ranking.json").read_text())
+        for g in allg:
+            r0 = ranked.get(g["condition"], [None])[0]
+            if g["stage"] == "sweep1" and r0 and len(g["steer"]) == 1 and \
+                    all(g["steer"][0][k] == r0[k] for k in ("layer", "site", "pool")):
+                gens.append(dict(g, label=f"top1_a{g['steer'][0]['alpha']}"))
     emb = m["embeddings"]
     rows = []
     for g in gens:
@@ -341,12 +503,17 @@ def clip_table(run, cfg, stage, m, score, nat_iqr):
                 r["proj"] = pr["proj"]
         rows.append(r)
     base = {(r["condition"], r["utterance_id"], r["seed"]): r for r in rows if r["label"] == "base"}
+    shared = cfg["steering"].get("share_base")
+    if shared:  # one alpha=0 clip per utterance (stage base, seed 1234) is the reference for every row
+        base = {(r["condition"], r["utterance_id"]): r for r in rows if r["label"] == "base"}
     ssv = {}
     for r in rows:
-        b = base.get((r["condition"], r["utterance_id"], r["seed"]))
+        b = base.get((r["condition"], r["utterance_id"]) if shared else (r["condition"], r["utterance_id"], r["seed"]))
         r["base_duration_s"] = b["duration_s"] if b else None
         if b and r["generated"] and b["generated"] and r["job_id"] in emb and b["job_id"] in emb:
             r["ssim"] = float(np.dot(emb[r["job_id"]]["sv"], emb[b["job_id"]]["sv"]))
+        if b is r:
+            r["ssim"] = None  # the alpha=0 clip compared with itself is not a voice-drift measurement
         lo, hi = cfg["guardrails"]["duration_ratio"]
         dur_bad = (b is not None and b["duration_s"] and r["duration_s"] is not None and
                    not (lo <= r["duration_s"] / b["duration_s"] <= hi))
@@ -397,12 +564,13 @@ def composite(summ, c, lab, base_sd):
     return float(np.mean(parts))
 
 
-def guard(summ, c, lab, cfg):
+def guard(summ, c, lab, cfg, ref_fail=None):
+    """ref_fail: optional measured failure rate of unsteered resamples (caa_pt calibration control)."""
     s, b, g = summ[(c, lab)], summ[(c, "base")], cfg["guardrails"]
     checks = dict(wer=s["wer"] is not None and s["wer"] <= b["wer"] + g["wer_points"],
                   cer=s["cer"] is not None and s["cer"] <= b["cer"] + g["wer_points"],
                   ssim=s["ssim"] is not None and s["ssim"] >= g["ssim_min"],
-                  failure=s["failure_rate"] <= max(g["failure_max"], b["failure_rate"]))  # Orpheus: own baseline
+                  failure=s["failure_rate"] <= max(g["failure_max"], b["failure_rate"], ref_fail or 0) + 1e-9)
     return all(checks.values()), checks
 
 
@@ -439,12 +607,21 @@ def select(a, cfg, utts):
     rows = clip_table(a.run, cfg, stage, m, score, iqr)
     summ = config_summary(rows, cfg)
     table, result = [], {}
+    ref_fail = {}
+    if cfg["guardrails"].get("failure_reference") == "resample":
+        rr = [r for r in clip_table(a.run, cfg, "resample", m, score, iqr) if r["label"] != "base"]
+        for c in CONDS:
+            x = [r["failure"] for r in rr if r["condition"] == c]
+            ref_fail[c] = float(np.mean(x)) if x else None
+        write_json(a.run / "selection" / "resample_failure.json",
+                   dict(rate=ref_fail, n={c: sum(r["condition"] == c for r in rr) for c in CONDS},
+                        rule="failure guardrail = max(failure_max, base failure, unsteered-resample failure)"))
     for c in CONDS:
         sd = base_sds(rows, c)
         labs = sorted({lab for (cc, lab) in summ if cc == c})
         for lab in labs:
             s = summ[(c, lab)]
-            passed, checks = guard(summ, c, lab, cfg)
+            passed, checks = guard(summ, c, lab, cfg, ref_fail.get(c))
             table.append(dict({k: v for k, v in s.items() if not k.endswith("_by_utt")},
                               composite=composite(summ, c, lab, sd), guard_pass=passed,
                               **{f"guard_{k}": v for k, v in checks.items()}))
@@ -468,7 +645,8 @@ def select(a, cfg, utts):
                 key = f"L{s['layer']}{s['site']}-{s['pool']}"
                 cands = [r for r in table if r["condition"] == c and r["label"].startswith(key + "_")]
                 usable = [r for r in cands if r["composite"] is not None
-                          and r["failure_rate"] <= max(g["failure_max"], b["failure_rate"]) + 1 / 16 + 1e-9
+                          and r["failure_rate"] <= max(g["failure_max"], b["failure_rate"], ref_fail.get(c) or 0)
+                          + 1 / 16 + 1e-9
                           and (r["ssim"] or 0) >= g["ssim_min"] and r["wer"] is not None and r["wer"] <= b["wer"] + 0.05]
                 best = max((r["composite"] for r in usable), default=None)
                 min_fail = min(r["failure_rate"] for r in cands)
@@ -514,6 +692,8 @@ def select(a, cfg, utts):
                 entry.update(label=None, note="no configuration passed all guardrails")
             result[c] = entry
         write_json(sel_dir / "selection_rule_output.json", result)
+        if cfg["steering"].get("share_base"):  # caa_pt: the rule output is the selection (no manual step)
+            write_json(sel_dir / "selection.json", result)
         print(json.dumps(result, indent=1))
 
 
@@ -649,15 +829,18 @@ naturalness 1-5. (3) Then open the transcript: was anything mispronounced or los
 
 if __name__ == "__main__":
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("action", choices=["asr", "embed", "prosody", "project", "select", "test", "listening"])
+    p.add_argument("action", choices=["asr", "embed", "prosody", "acoustics", "project", "select", "test", "listening"])
     p.add_argument("--run", type=Path, required=True)
-    p.add_argument("--scope", default="natural", choices=["natural", "sweep1", "sweep2", "test"])
+    p.add_argument("--scope", default="natural", choices=SCOPES)
     p.add_argument("--step", type=int, choices=[1, 2])
-    p.add_argument("--conditions", nargs="+", default=list(CONDS))
+    p.add_argument("--conditions", nargs="+")
+    config_arg(p)
     a = p.parse_args()
-    cfg = load_config()
+    cfg = load_config(a.config)
+    CONDS = tuple(conditions(cfg))
+    a.conditions = a.conditions or list(CONDS)
     utts = load_data(cfg)
-    fn = dict(asr=asr, embed=embed, prosody=prosody, project=project, select=select, test=test,
+    fn = dict(asr=asr, embed=embed, prosody=prosody, acoustics=acoustics, project=project, select=select, test=test,
               listening=listening)[a.action]
     t0 = time.time()
     fn(a, cfg, utts)

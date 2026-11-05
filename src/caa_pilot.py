@@ -73,19 +73,32 @@ def load_data(cfg):
             u["natural_wav"], u["natural_speaker"], u["natural_sha256"] = str(path), r["configuration_id"].split("/")[1], r["SHA256"]
             continue
         for cond, spec in cfg["conditions"].items():
-            if r["filename"] == spec["wav"]:
+            if spec.get("wav") and r["filename"] == spec["wav"]:
                 u.setdefault("synthetic", {})[cond] = dict(
                     wav=str(path), sha256=r["SHA256"], configuration_id=r["configuration_id"],
                     token_cap_warning=r["token_cap_warning"] == "True", input_text=r["input_text_or_reference"])
     for u in utts.values():
         u["budget"] = token_budget_for(u)
+        u.setdefault("synthetic", {})
     return utts
+
+
+def conditions(cfg) -> list[str]:
+    return list(cfg["conditions"])
+
+
+def config_arg(parser):
+    """--config for every CAA script; defaults to the pilot config so the pilot's commands are unchanged."""
+    parser.add_argument("--config", type=Path, default=CONFIG)
 
 
 def condition_voices(cfg, utts):
     """Voice per condition. Read from the manifest configuration_id (model/voice/script), never retyped."""
     voices = {}
     for cond, spec in cfg["conditions"].items():
+        if not spec.get("wav"):  # generated in this run (e.g. orpheus-pt): voice comes from the config
+            voices[cond] = spec["voice"]
+            continue
         ids = {u["synthetic"][cond]["configuration_id"] for u in utts.values()}
         if len(ids) != 1:
             raise ValueError(f"{cond}: configuration ids {ids}")

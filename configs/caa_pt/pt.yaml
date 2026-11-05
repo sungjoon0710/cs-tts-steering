@@ -1,0 +1,50 @@
+# CAA follow-up on Orpheus Hindi PRETRAINED (docs/preliminary_caa.tex method, trimmed).
+# Positives: the natural recordings. Negatives: on-policy PT outputs (stage `base`, seed 1234) for the same
+# Devanagari/English transcripts. Outputs go to $LOCAL_SP/outputs/caa_pt/<run_id>/. Paths are kedi paths.
+study: caa_pt
+data_dir: /local/speech/users/aa6109/Listening_Examples_100   # read-only input
+split_file: configs/caa_pilot/split.json                      # the pilot's split, unchanged
+seed: 1234
+split:
+  seed: 20261029
+  cv_folds: 5
+conditions:
+  # no `wav`: the synthetic class is generated in this run; text-only prompt, random speaker per clip
+  orpheus-pt: {model: orpheus-hi-pt, voice: none, negatives_stage: base}
+pins:
+  orpheus-hi-pt: {repo: canopylabs/3b-hi-pretrain-research_release, revision: b813fee6cf8e205fa1faeafd4959d21da133a7e9}
+  codec:       {repo: hubertsiuzdak/snac_24khz, revision: d73ad176a12188fcf4f360ba3bf2c2fbbe8f58ec}
+  whisper:     {repo: openai/whisper-large-v3, revision: 06f233fe06e710322aca913c1bc4249a0d71fce1}
+  speaker_sv:  {repo: microsoft/wavlm-base-plus-sv, revision: feb593a6c23c1cc3d9510425c29b0a14d2b07b1e}
+  embedding:   {repo: microsoft/wavlm-base-plus, revision: 4c66d4806a428f2e922ccfa1a962776e232d487b}
+diagnostics:
+  pca_dims: 64
+  l2: 1.0
+  permutations: 200
+  probe_permutations: 3
+  m1_l2: 10.0
+  shortlist_size: 6
+  shortlist_sites: [attn_mean]   # pilot: residual-stream steering broke generation; o_proj mean-pooled only
+steering:
+  mode: all              # every position (prompt + generated), norm-preserving
+  share_base: true       # batch size 1 at seed 1234: the alpha=0 clip IS the stage-`base` clip (no re-generation)
+  sweep1_alphas: [0.5, 1, 2]
+  topk: [1, 2, 3]
+  sweep2_alphas: [0.5, 1, 2]
+  resample_seeds: [1235, 1236]   # calibration control: alpha=0 at other seeds on dev (added after sweep 1)
+  random_draws: 1        # one random-vector control on the 19 test utterances
+  test_seeds: [1234]
+  batch_size: 1          # every clip is an independent seed-1234 sample; reproducible per clip
+guardrails:
+  wer_points: 0.02
+  ssim_min: 0.75
+  failure_max: 0.05
+  # PT samples a new speaker/trajectory per seed, so failures (incl. the duration ratio vs the seed-1234 base) occur
+  # without steering: unsteered resamples (stage `resample`, seeds 1235/1236, 16 dev) failed 7/32. The failure
+  # guardrail is max(failure_max, base, that measured rate). Decided after sweep 1; strict outcome also reported.
+  failure_reference: resample
+  duration_ratio: [0.5, 2.0]
+evaluation:
+  asr_style: matched     # scripts/learned_evaluate.py settings (batch 1, long-form), as in the partner summary
+  nuclei_detector: terminal_v2
+  lab_script: /proj/speech/tools/speechlab/praat_scripts/speakingRate.praat
