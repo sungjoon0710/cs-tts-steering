@@ -22,7 +22,7 @@
 \maketitle
 
 \begin{abstract}
-This extends the CAA pilot (\texttt{docs/reports/preliminary\_caa.pdf}) to the \emph{pretrained} Orpheus 3B Hindi model (\texttt{canopylabs/3b-hi-pretrain-research\_release}, ``PT''), which has no named voices. Positives are the 100 natural TV recordings of \texttt{Listening\_Examples\_100}; negatives are the model's own (on-policy) generations from the same Devanagari/English transcripts. The steering vector $v=\bar h_{\text{natural}}-\bar h_{\text{PT}}$ was built from 69 training pairs. Evaluation is a three-way comparison with one model: Natural vs.\ PT base vs.\ PT steered. As in the pilot, a linear natural-vs-PT direction exists at every site (held-out AUC median $1.0$, permutation 95th percentile $\le0.63$). The selected configuration (layer 27 attention output, mean-pooled $v$, $\astar=1$) moves an external natural-vs-PT classifier (M1) beyond a random vector of the same norm on the 19 test utterances ($+0.79$ log-odds, $p=.023$), but \textbf{not significantly beyond the unsteered baseline} ($+0.40$, 95\% CI $[-0.49,1.28]$). Similarity to the paired natural clip (M2) and prosody distance (M3) move in the right direction but are not significant. In-sample on all 100 utterances, M1 improves clearly ($+0.84$, $p=5\times10^{-5}$) and M2/M3 trend better ($p\approx.08$), while voice quality worsens (HNR $-1.1$\,dB, jitter and shimmer up) and NISQA is unchanged. The pre-registered failure guardrail admitted no configuration; we recalibrated it to the measured sampling variance of the unsteered model. On test the steered model still fails the failure-rate and WER guardrails, the latter because of one clip. The objective verdict is \textbf{no-go}, with a weak positive signal worth a listening check.
+This extends the CAA pilot (\texttt{docs/reports/preliminary\_caa.pdf}) to the \emph{pretrained} Orpheus 3B Hindi model (\texttt{canopylabs/3b-hi-pretrain-research\_release}, ``PT''), which has no named voices. Positives are the 100 natural TV recordings of \texttt{Listening\_Examples\_100}; negatives are the model's own (on-policy) generations from the same Devanagari/English transcripts. The steering vector $v=\bar h_{\text{natural}}-\bar h_{\text{PT}}$ was built from 69 training pairs. Evaluation is a three-way comparison with one model: Natural vs.\ PT base vs.\ PT steered. As in the pilot, a linear natural-vs-PT direction exists at every site (held-out AUC median $1.0$, permutation 95th percentile $\le0.63$). The selected configuration (layer 27 attention output, mean-pooled $v$, $\astar=1$) moves an external natural-vs-PT classifier (M1) beyond a random vector of the same norm on the 19 test utterances ($+0.79$ log-odds, $p=.023$), but \textbf{not significantly beyond the unsteered baseline} ($+0.40$, 95\% CI $[-0.49,1.28]$). Similarity to the paired natural clip (M2) and prosody distance (M3) move in the right direction but are not significant. In-sample on all 100 utterances, M1 improves clearly ($+0.84$, $p=5\times10^{-5}$) and M2/M3 trend better ($p\approx.08$), while voice quality worsens (HNR $-1.1$\,dB, jitter and shimmer up) and NISQA is unchanged. The pre-registered failure guardrail admitted no configuration; we recalibrated it to the measured sampling variance of the unsteered model. On test the steered model still fails the failure-rate and WER guardrails, the latter because of one clip. The objective verdict is \textbf{no-go}, with a weak positive signal. In an informal team listening session, the steered clips sounded somewhat more natural, but in several clips the spoken words were wrong or fragmented. A clip-level analysis suggests this comes mostly from the transcripts and from the unsteered model itself, not from steering (\S\ref{sec:listening-feedback}). Filtering the training pairs, or tracing errors back to the transcripts, is the next step.
 \end{abstract}
 
 \section{Question and design changes from the pilot}
@@ -197,12 +197,27 @@ Failure guardrail (recal.) & 26\% vs.\ 21.9\% & fail \\
 \end{tabular}
 \end{center}
 
+\subsection{Team listening feedback and content errors}\label{sec:listening-feedback}
+An informal listening session by the team (Hindi--English bilinguals, not blind) gave two observations:
+\begin{itemize}
+\item The steered clips sound \emph{a bit more natural} than PT base. This agrees with the direction of M1--M3.
+\item In several clips the \emph{content is wrong or fragmented}: words are missing, garbled or not the words of the transcript.
+\end{itemize}
+To see where the content errors come from, we compared clip-level CER (Whisper-large-v3 against the input transcript) for the three groups, over all 100 utterances. CER is only a rough proxy for what listeners hear, especially for Hinglish.
+\begin{itemize}
+\item \textbf{PT base already has poor content.} Its corpus CER on test is 0.60, so many unsteered clips already contain wrong or missing words.
+\item \textbf{Steering does not make content worse overall.} Steering raised CER by more than 0.1 in 19\% of utterances and lowered it by more than 0.1 in 28\%. The size of the change is unrelated to transcript quality (Spearman $\rho=0.0$ with natural-clip CER). The exception is \texttt{train\_1693\_0}, whose steered clip runs 2.7 times as long as base and whose CER rises from 0.55 to 4.4; that error is caused by steering.
+\item \textbf{The transcripts often do not match the natural recordings.} Whisper on the \emph{natural} clips disagrees strongly with our transcripts: median CER 0.61, with 38 of 76 train utterances above 0.6 and 17 above 0.8. For \texttt{train\_1574\_0} the CER is 14.5, so the transcript and recording barely correspond. Some of this is Whisper's weakness on Hinglish, but not all of it.
+\item \textbf{Bad transcripts and poor model content go together.} Utterances where Whisper disagrees with the transcript on the natural clip are also the ones where PT's own output scores worst (Spearman $\rho=0.58$ for base, $0.56$ for steered). Mismatched or malformed text input gives poor output whether or not we steer.
+\end{itemize}
+This also matters for the vector itself. When a natural clip does not match its transcript, the teacher-forced natural activations encode ``audio that does not fit the text''. $v$ then partly points toward text--audio mismatch, which would push generations away from the transcript. This agrees with the high natural NLL (5.69 vs.\ 2.69 nats) and with the pilot's NLL confound. The upshot is that the training pairs should be filtered, or the transcripts fixed, before the next run (\S\ref{sec:next}).
+
 \section{Discussion}
 \paragraph{Same picture as the pilot, with one difference.} The direction exists, is causal, and is specific to $v$. But on the test set it does not bring output measurably closer to the paired natural recording. Unlike the pilot, M2 and M3 here move in the right direction in-sample, with $p\approx.08$, so the PT model may be somewhat more steerable toward natural delivery than the fine-tuned models.
 \paragraph{What the vector changes.} Steering raises F0 level and range and the syllable rate, moving toward the natural pool. It also lowers HNR and raises jitter and shimmer. Natural TV audio has lower HNR and higher jitter than TTS, so these changes may partly be steering toward the TV channel rather than toward delivery. NISQA, a learned quality score, is flat: it neither rewards nor penalises the change.
 \paragraph{Sampling variance dominates the guardrails.} PT draws a new speaker for each sample, and even unsteered resamples fail the duration-ratio test 22\% of the time. Single-seed comparisons against one base clip are therefore noisy. A fair test needs several seeds per utterance and failure criteria that do not depend on one reference clip.
 \paragraph{WER is a weak proxy.} Natural speech has a higher WER than PT (corpus .945 vs.\ .718), as in the partner summary, so higher WER does not necessarily mean less intelligible speech.
-\paragraph{Transcripts.} The caveat from the pilot applies: the Devanagari/English inputs went through lossy romanization and transliteration, so they do not fully match what was said in the natural clips.
+\paragraph{Transcripts.} The caveat from the pilot applies: the Devanagari/English inputs went through lossy romanization and transliteration, so they do not fully match what was said in the natural clips. Here the mismatch is measurable (natural-clip CER median 0.61) and is the likeliest source of the wrong or fragmented content listeners heard (\S\ref{sec:listening-feedback}).
 
 \section{Limitations}
 \begin{itemize}
@@ -210,12 +225,16 @@ Failure guardrail (recal.) & 26\% vs.\ 21.9\% & fail \\
 \item The failure guardrail was recalibrated after sweep 1. Under the strict rule, nothing would have been selected.
 \item Several metric deviations from the partner summary: natural audio resampled with torchaudio rather than \texttt{resample\_poly}; NISQA run with newer library versions than its pins, with clips under 0.3\,s left unscored (1 clip); small stand-ins for two scipy functions used only by unreported features.
 \item The mechanistic projection check from the pilot was not run.
-\item No human listening yet. Naturalness is judged only by bilingual listeners (\texttt{AGENTS.md}).
+\item Human listening so far is informal and not blind. Naturalness is judged only by bilingual listeners (\texttt{AGENTS.md}); a blind test is still needed.
+\item Content errors were assessed with Whisper CER, which is unreliable for Hinglish and cannot separate transcript errors from ASR errors.
 \end{itemize}
 
-\section{Next steps}
+\section{Next steps}\label{sec:next}
 \begin{enumerate}
-\item Blind A/B listening on \path{Listening_Examples_100_PT}, test utterances first. Include \texttt{train\_1693\_0}.
+\item \textbf{Find mismatched transcripts.} Rank the 100 utterances by Whisper CER on the natural clip and have a Hindi speaker check the worst 20 or so, separating transcript errors from ASR errors.
+\item \textbf{Rebuild $v$ from clean pairs.} Drop flagged train pairs, rebuild the vector, and rerun only the final stage at the same site and $\alpha$ (about one GPU-hour). Compare content and naturalness with this run.
+\item \textbf{Fix the transcripts at the source.} Correct flagged transcripts, or re-transcribe the natural audio directly into Devanagari/English instead of going through romanized text.
+\item Blind A/B listening on \path{Listening_Examples_100_PT}, test utterances first. Include \texttt{train\_1693\_0}, and note per clip whether the words are wrong in base, steered or both.
 \item Re-run base and steered with 3--5 seeds per utterance to separate steering from sampling variance, and define failure relative to the base distribution rather than one clip.
 \item Reduce the channel confound, for example by building $v$ from natural clips matched to PT on loudness and band-limiting, or by subtracting a speaker/channel direction.
 \end{enumerate}

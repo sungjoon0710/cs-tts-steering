@@ -25,8 +25,17 @@
 \begin{itemize}
 \item Test (19): no significant gain over PT base on M1--M3; steered beats a random vector on M1 ($+0.79$, $p=.023$). More failures (5 vs.\ 1), mostly duration flags.
 \item All 100 (in-sample): M1 $+0.84$ ($p=5\times10^{-5}$), M2/M3 better ($p\approx.08$), syllable rate up, voice quality worse (HNR $-1.1$\,dB). NISQA flat.
-\item Objective verdict: no-go, with a weak positive signal; listening pending.
+\item Objective verdict: no-go, with a weak positive signal.
+\item Team listening (informal): steered clips sound \emph{a bit more natural}, but in several clips the \emph{words are wrong or fragmented}.
 \end{itemize}
+
+\paragraph{Where the content errors come from.} Clip-level CER (Whisper-large-v3 vs.\ transcript, all 100 utterances; a rough proxy):
+\begin{itemize}
+\item PT base already has poor content (test corpus CER 0.60). Steering does not make it worse overall: CER rises by more than 0.1 in 19\% of utterances and falls by more than 0.1 in 28\%. The exception is \texttt{train\_1693\_0} (steered clip 2.7$\times$ longer, CER 0.55 $\to$ 4.4).
+\item The transcripts often do not match the natural recordings: natural-clip CER median 0.61; 38 of 76 train utterances above 0.6. Utterances with mismatched transcripts are also where PT's output is worst (Spearman $\rho=0.58$).
+\item Mismatched training pairs may also teach $v$ ``audio that does not fit the text''.
+\end{itemize}
+\paragraph{Upshot.} Filter the training pairs (flag mismatched transcripts, have a Hindi speaker check the worst 20 or so, rebuild $v$ from clean pairs) or trace errors back to the transcripts and fix them at the source.
 
 \begin{center}
 \begin{tabular}{lccc}
