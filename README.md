@@ -2,7 +2,7 @@
 
 Building activation steering vectors for naturalistic Hindi–English code-switched speech generation using the MaSaC corpus.
 
-> **Status:** preliminary study design. The TTS model and its LLM backbone are not yet selected (shown as `<model>` / `<backbone>` below). See [`docs/study_design.md`](docs/study_design.md) for the full notes.
+> **Status:** the sections below retain the original study design, including future-work placeholders. Indic-Speak and Orpheus implementations and CAA pilots now exist. See [shared representation/steering usage](docs/REPRESENTATION_README.md) and [research decisions and current limitations](docs/RESEARCH_DECISIONS.md) for the implemented inspection tools and recent findings.
 
 ## Overview
 
