@@ -67,8 +67,25 @@ def asr_speaker(rows,out,cache,include_speaker=True,asr_model=ASR,local_files_on
             'truncation':False,'attention_mask':True,'batch_size':1,'sample_rate':16000,'dtype':'float16','attention':'eager',
             'peak_gpu_allocated_bytes':torch.cuda.max_memory_allocated()})
         return
-    extractor=AutoFeatureExtractor.from_pretrained(paths[SPEAKER[0]],local_files_only=True)
-    model=WavLMForXVector.from_pretrained(paths[SPEAKER[0]],local_files_only=True).to(device).eval()
+    speaker_embeddings(rows,out,cache,local_files_only,snapshot=paths[SPEAKER[0]])
+    write_json(out/'decoding.json',{'asr_model':asr_model,'speaker_model':SPEAKER,'ASR':{'sample_rate':16000,'language':'hi','task':'transcribe',
+        'batch_size':1,'do_sample':False,'num_beams':1,'max_new_tokens':440,'return_timestamps':True,'condition_on_prev_tokens':False,
+        'truncation':False,'attention_mask':True,'dtype':'float16','attention':'eager'},'speaker':{'sample_rate':16000,'batch_size':1,'dtype':'float32','attention_mask':True,'L2_normalized':True},
+        'comparison_limit':'Legacy uses missing attention masks and potentially truncated long input; exact settings are not identical',
+        'peak_gpu_allocated_bytes':torch.cuda.max_memory_allocated()})
+
+
+def speaker_embeddings(rows,out,cache,local_files_only=True,snapshot=None):
+    """Reuse the existing WavLM extractor independently of ASR inference."""
+    import torch
+    from huggingface_hub import snapshot_download
+    from transformers import AutoFeatureExtractor,WavLMForXVector
+    device='cuda' if torch.cuda.is_available() else 'cpu'
+    if snapshot is None:
+        snapshot=snapshot_download(*SPEAKER[:1],revision=SPEAKER[1],cache_dir=str(cache),token=False,
+            allow_patterns=['pytorch_model.bin','*.json'],local_files_only=local_files_only)
+    extractor=AutoFeatureExtractor.from_pretrained(snapshot,local_files_only=True)
+    model=WavLMForXVector.from_pretrained(snapshot,local_files_only=True).to(device).eval()
     embeddings=[]
     for i,row in enumerate(rows):
         try:
@@ -81,11 +98,8 @@ def asr_speaker(rows,out,cache,include_speaker=True,asr_model=ASR,local_files_on
         except Exception as e:embeddings.append(record(row,status='extraction_failed',embedding=None,error_type=type(e).__name__,error=str(e)[:400]))
         if (i+1)%25==0:write_jsonl(out/'speaker_embeddings.jsonl',embeddings);print(f'WavLM embeddings {i+1}/{len(rows)}',flush=True)
     write_jsonl(out/'speaker_embeddings.jsonl',embeddings)
-    write_json(out/'decoding.json',{'asr_model':asr_model,'speaker_model':SPEAKER,'ASR':{'sample_rate':16000,'language':'hi','task':'transcribe',
-        'batch_size':1,'do_sample':False,'num_beams':1,'max_new_tokens':440,'return_timestamps':True,'condition_on_prev_tokens':False,
-        'truncation':False,'attention_mask':True,'dtype':'float16','attention':'eager'},'speaker':{'sample_rate':16000,'batch_size':1,'dtype':'float32','attention_mask':True,'L2_normalized':True},
-        'comparison_limit':'Legacy uses missing attention masks and potentially truncated long input; exact settings are not identical',
-        'peak_gpu_allocated_bytes':torch.cuda.max_memory_allocated()})
+    write_json(out/'speaker_settings.json',{'speaker_model':SPEAKER,'sample_rate':16000,'batch_size':1,
+        'dtype':'float32','attention_mask':True,'L2_normalized':True,'device':device})
 
 def nisqa(rows,out,source):
     # Official source/checkpoint provided separately and pinned in its manifest.

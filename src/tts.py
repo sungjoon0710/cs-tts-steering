@@ -79,10 +79,11 @@ class IndicSpeak:
         self._build_prompt = inference.build_prompt
 
     @torch.no_grad()
-    def __call__(self, text: str, voice: str, seed: int, max_new_tokens: int | None = None):
+    def __call__(self, text: str, voice: str, seed: int, max_new_tokens: int | None = None,
+                 *, style: str = "", token_callback=None):
         torch.manual_seed(seed)
         tts = self.tts
-        prompt = self._build_prompt(tts.tok, text, voice)
+        prompt = self._build_prompt(tts.tok, text, voice, style=style)
         max_new = token_budget(text) if max_new_tokens is None else max_new_tokens
         ids = torch.tensor([prompt], device=self.device)
         t0 = time.time()
@@ -91,6 +92,9 @@ class IndicSpeak:
             eos_token_id=[tts._eos, tts.tok.eos_token_id], pad_token_id=tts.tok.eos_token_id,
             do_sample=True, **self.decoding)
         new = gen[0, len(prompt):].tolist()
+        if token_callback is not None:
+            # Capture the actual trajectory even if subsequent decoding fails.
+            token_callback(tuple(prompt), tuple(new))
         z_q = tts.snac.quantizer.from_codes(snac_codes(new, self.device))
         wav = tts.vocos(z_q.float())[0, 0].clamp(-1, 1).float().cpu().numpy()
         return wav, _info(len(new), max_new, t0, wav)
