@@ -50,7 +50,7 @@ def panel(fig, spec, wav, tg, title):
     for a, b, w in read_textgrid(tg):
         unmatched = w == "*"
         ax_t.axvspan(a, b, color="#d9d9a0" if unmatched else "white", ec="black", lw=0.8)
-        if w:
+        if w and (b - a) > (0.3 if unmatched else 0.06):  # skip labels too narrow to read
             ax_t.text((a + b) / 2, 0.5, "‹unmatched›" if unmatched else w, ha="center", va="center",
                       fontsize=8, rotation=90 if b - a < 0.25 and not unmatched else 0, family="serif")
     for ax in (ax_w, ax_s, ax_t):
