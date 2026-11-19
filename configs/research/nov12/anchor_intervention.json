@@ -1,0 +1,19 @@
+{
+  "emotion": "anger",
+  "style": "ANGER",
+  "layers": [
+    3,
+    26
+  ],
+  "epsilon": 0.02,
+  "random_seed": 20261112,
+  "directories": {
+    "expand": "expanded",
+    "smoke": "causal_smoke",
+    "rest": "causal_rest"
+  },
+  "selection": "Chosen before new held-out audio: layer 3 highest calibration cross-text direction consistency; layer 26 highest normalized difference. ANGER has no screen ASR content errors.",
+  "position": "Final speech-start prompt token only, matching vector collection; other prompt and generated-audio states untouched.",
+  "human_review": "User explicitly deferred listening as a gate; results are prompt-context causal diagnostics, not validated emotion control.",
+  "smoke_ASR_guardrail": "Stop before rest if positive smoke WER exceeds matched default by >0.20 absolute, or exact ASR reference duplication occurs. Do not tune coefficients on held-out outcomes."
+}
