@@ -1,0 +1,83 @@
+{
+  "study": "M1 multi-style generation-time mechanism study",
+  "protocol_version": 1,
+  "voice": "Amit",
+  "language": "English",
+  "styles": {
+    "default": "",
+    "anger": "ANGER",
+    "happy": "happy",
+    "sad": "sad",
+    "news": "news"
+  },
+  "history_seed": 1234,
+  "secondary_history_seed": 5678,
+  "seed_for_analysis": 20261116,
+  "max_frames": 64,
+  "min_frames": 8,
+  "primary_generation_rows": "j >= 1; speech-start prediction j=0 is an engineering/anchor diagnostic only",
+  "phase_weighting": "Equal mean weight over all seven predicted phases; each utterance contributes once",
+  "position_bins": "Three chronological code-frame tertiles of the inspected prefix; not word-aligned",
+  "history_subset": "10 development and 30 confirmation utterances frozen in cohort.jsonl",
+  "reference_generation": "Reuse c01-c04 default and alternate ANGER histories. Generate only missing DEFAULT prompt continuations with seeds 1234/5678, original token_budget(text) and decoding settings. Save IDs; do not decode WAVs.",
+  "decoding": {
+    "temperature": 0.6,
+    "top_p": 0.9,
+    "top_k": 50,
+    "repetition_penalty": 1.2
+  },
+  "primary_contrasts": [
+    "anger-minus-news",
+    "happy-minus-news",
+    "sad-minus-news"
+  ],
+  "secondary_contrasts": [
+    "anger-minus-default",
+    "happy-minus-default",
+    "sad-minus-default",
+    "news-minus-default",
+    "happy-minus-anger",
+    "sad-minus-anger",
+    "sad-minus-happy"
+  ],
+  "historical_reference": "Four calibration-text prompt-anchor default-relative residual directions. Subtract the historical News direction to form each fixed News-relative reference. No new fitting on confirmation.",
+  "development_fit": "Unit-normalize each phase-averaged contrast. Average across development utterances per label/site/layer/phase. Normalize the three-label consensus to rank one; residualize each style mean against it. Freeze this basis before confirmation extraction/analysis.",
+  "primary_outcomes": [
+    "historical_news_anchor_alignment",
+    "shared_alignment_resid",
+    "specificity_margin_resid",
+    "shared_alignment_attn",
+    "specificity_margin_attn",
+    "shared_alignment_mlp",
+    "specificity_margin_mlp",
+    "residual_magnitude_L26_minus_L5",
+    "phase0_minus_other_phases_JSD",
+    "history_direction_cosine"
+  ],
+  "primary_summary_rule": "Average equally over the three News-relative style contrasts, seven phases and all 28 layers (and sites only where specified). The two fixed layer indices come from prior work, not confirmation selection.",
+  "primary_tests": "Two-sided one-sample t tests of utterance-level signed outcomes versus zero, Holm correction across this fixed 10-test family. Approximate inference assumes independent source documents; include stratified utterance bootstrap confidence intervals and descriptive sensitivity.",
+  "bootstrap": {
+    "replicates": 2000,
+    "level": 0.95,
+    "strata": "operational text category",
+    "unit": "utterance/source document",
+    "basis": "held fixed after development"
+  },
+  "map_uncertainty": "Centered standardized max-deviation bootstrap bands within each predeclared historical/shared/specificity map family; approximate simultaneous bands, not independent token tests.",
+  "M2_selection": "Development only: choose one site/layer by highest shared-direction alignment and another by highest style-specific margin; choose one phase by largest development News-relative output JSD. Record all ties deterministically, freeze before confirmation. No intervention during M1.",
+  "confirmation_gate": "Pilot and development engineering checks pass; basis, hypothesis shortlist and manifest hashes frozen. Never retune on confirmation.",
+  "missingness": "Record every requested utterance/history and failure. No missing values assigned zero. Report complete-case and requested denominators; development fit requires >=24 complete primary histories and >=8 per category.",
+  "storage": "All-position metric maps and probabilities; phase-pooled tensors on development and paired-primary histories for resume safety remain on Kedi; selective exact rows for frozen 6-development/3-confirmation IDs plus c03/c04 engineering checks. No full logits, new decoder replays or model weights exported.",
+  "limits": [
+    "Instruction labels are lexical manipulations, not verified emotion delivery",
+    "Default omits four style-block tokens",
+    "News-relative controls equal format, not emotional semantics",
+    "Reference histories may be off-policy under other prompts",
+    "No per-layer token distributions are claimed",
+    "English Amit only; one checkpoint and primary seed",
+    "Text categories are operational, not psychological ground truth",
+    "Distinct documents may share authors/topics",
+    "No unseen-pretraining-data claim",
+    "No causal intervention or perceived-quality conclusion"
+  ]
+}
