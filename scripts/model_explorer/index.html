@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>SpeechLab · Model Explorer</title><link rel="stylesheet" href="/style.css"></head>
+<body>
+<header>
+ <div class="brand"><span class="brand-icon">S∿</span><div><strong>SpeechLab <span>Model Explorer</span></strong><small>CONDITIONING · REPRESENTATIONS · SPEECH</small></div></div>
+ <div class="header-actions"><span class="badge">LOCAL · SAVED TRACES</span><button id="saveView">Save view</button><button id="loadView">Open view</button><button id="restoreView">Restore last</button><input id="viewFile" type="file" accept="application/json" hidden></div>
+</header>
+<section class="experiment-bar" aria-label="Experiment controls">
+ <label>Dataset<select id="dataset"></select></label><label>Experiment<select id="experiment"></select></label><label>Utterance<select id="utterance"></select></label>
+ <label class="condition-a">Condition A<select id="conditionA"></select></label><label>Audio history A<select id="historyA"></select></label>
+ <label class="condition-b">Condition B<select id="conditionB"></select></label><label>Audio history B<select id="historyB"></select></label>
+ <label class="wide">Registered comparison<select id="comparison"></select></label>
+</section>
+<div id="status" role="status">Opening verified experiment catalog…</div>
+<main class="workspace">
+ <aside class="architecture">
+  <div class="panel-heading"><span>MODEL PATHWAY</span><span id="layerCount"></span></div>
+  <button class="component" data-component="tokenizer"><span>01</span>Tokenizer & prompt</button>
+  <button class="component" data-component="embedding"><span>02</span>Input embeddings</button>
+  <div class="architecture-block"><div class="section-label">03 &nbsp; LLAMA TRANSFORMER</div><div id="layerNav" aria-label="Transformer layers"></div><p class="subtle">All layers observed. Full vectors at selected positions.</p></div>
+  <button class="component" data-component="final_norm"><span>04</span>Output RMSNorm</button>
+  <button class="component" data-component="predictions"><span>05</span>LM head · predictions</button>
+  <div class="section-label">06 &nbsp; SNAC QUANTIZER</div><div id="snacNav"></div>
+  <div class="section-label">07 &nbsp; EXECUTED VOCOS</div><div id="vocosNav"></div>
+  <button class="component" data-component="waveform"><span>08</span>Waveform</button>
+  <div class="architecture-note">Only recorded computations are exposed. No inference runs here.</div>
+ </aside>
+ <section class="research">
+  <div class="research-heading"><div><span class="eyebrow" id="contextLabel">OBSERVATIONAL REPLAY</span><h1 id="componentTitle">Representation propagation</h1></div><div class="export-actions"><button id="exportPlot">PNG</button><button id="exportData">Data JSON</button><button id="exportCSV">CSV</button></div></div>
+  <p id="utteranceText" class="utterance-text"></p>
+  <div class="selection-bar">
+   <button id="prevLayer" title="Previous layer">← Layer</button><label>Layer<input id="layer" type="number" min="0" max="27" value="14"></label><button id="nextLayer" title="Next layer">Layer →</button><button id="pinLayer">Pin layer</button>
+   <button id="prevPosition" title="Previous prediction">−</button><label>Prediction j<input id="position" type="number" min="0" value="0"></label><button id="nextPosition" title="Next prediction">+</button>
+   <span id="phaseBadge" class="badge"></span><div id="pins"></div>
+  </div>
+  <nav class="tabs" aria-label="Research views"><button data-tab="propagation" class="active">Propagation</button><button data-tab="vectors">Vectors & pathway</button><button data-tab="predictions">Predictions</button><button data-tab="geometry">Shared PCA</button><button data-tab="decoder">Codec & decoder</button></nav>
+  <section id="propagation" class="tab active">
+   <div class="plot-controls">
+    <label>Branch<select id="site"><option value="resid">Post-block residual</option><option value="attn">Attention projection</option><option value="mlp">MLP output</option></select></label>
+    <label>Distance<select id="distance"><option value="normalized_l2">Normalized L2</option><option value="cosine_distance">Cosine distance</option></select></label>
+    <label>Predicted phase<select id="phase"><option value="all">All 7 phases</option></select></label>
+    <label>Position start<input id="positionStart" type="number" value="0" min="0"></label><label>Window<input id="positionWidth" type="number" value="448" min="7"></label>
+    <button id="zoomIn">Zoom +</button><button id="zoomOut">Zoom −</button><button id="panLeft">Pan ←</button><button id="panRight">Pan →</button>
+    <label>Layers<input id="layerStart" type="number" value="0" min="0" max="27"></label><label>to<input id="layerEnd" type="number" value="27" min="0" max="27"></label>
+    <label>Scale<select id="scaleMode"><option value="full">Full range</option><option value="95">95th percentile</option><option value="99">99th percentile</option><option value="manual">Manual maximum</option></select></label>
+    <label>Maximum<input id="scaleMax" type="number" step="0.01" value="0.3" min="0.000001"></label><label class="check"><input id="lockScale" type="checkbox">Lock scale</label>
+   </div>
+   <div class="card"><div class="card-head"><h2>Layer × prediction position</h2><span id="heatScale"></span></div><canvas id="heatmap" data-height="320" aria-label="Layer-position heatmap"></canvas><div class="color-legend"><span>0</span><div></div><span id="colorMax"></span></div><p class="plot-note">Click or hover a cell. Crosshairs persist across views. Row j predicts code j; row 0 processes speech-start.</p></div>
+   <div class="two-columns"><div class="card"><h2>Across layers · selected position</h2><canvas id="layerCurve" data-height="180"></canvas></div><div class="card"><h2>Across positions · selected layer</h2><canvas id="positionCurve" data-height="180"></canvas></div></div>
+   <div class="card"><h2>Marginal means · displayed window</h2><div class="two-columns"><canvas id="layerMarginal" data-height="145"></canvas><canvas id="positionMarginal" data-height="145"></canvas></div><p class="plot-note">Descriptive means over dependent code positions, not independent experimental replications.</p></div>
+  </section>
+  <section id="vectors" class="tab">
+   <div class="card"><h2>Verified block computation</h2><div id="pathway" class="pathway"></div><p id="equation" class="plot-note"></p></div>
+   <div class="plot-controls"><label>Vector component<select id="vectorSite"><option value="resid">Final post-block residual</option><option value="incoming">Incoming residual</option><option value="attention_norm">Attention normalization/input</option><option value="attn">Projected attention branch</option><option value="after_attention">Residual after attention</option><option value="mlp_norm">MLP normalization/input</option><option value="mlp">MLP branch</option></select></label><label>Channel from<input id="channelStart" type="number" min="0" value="0"></label><label>to<input id="channelEnd" type="number" min="1" value="3072"></label><button id="nearestVector">Go to nearest captured position</button></div>
+   <div id="embeddingControls" class="plot-controls" hidden><label>Prompt token A<select id="promptIndexA"></select></label><label>Prompt token B<select id="promptIndexB"></select></label></div>
+   <div id="vectorAvailability" class="notice"></div><div id="vectorStats" class="metric-grid"></div>
+   <div id="vectorCards"></div>
+  </section>
+  <section id="predictions" class="tab">
+   <div class="notice">Final LM-head predictions, not per-layer logits. Raw softmax precedes temperature, repetition penalty and top-k/top-p. Teacher forcing did not sample new tokens.</div>
+   <div id="predictionStats" class="metric-grid"></div><div class="two-columns"><div class="card"><h2>A · top five raw predictions</h2><canvas id="barsA" data-height="200"></canvas><div id="topA"></div></div><div class="card"><h2>B · top five raw predictions</h2><canvas id="barsB" data-height="200"></canvas><div id="topB"></div></div></div>
+   <div class="card"><div class="card-head"><h2>Output-prediction trajectory</h2><select id="predictionMetric"><option value="jsd_nats">Full-vocabulary JSD (nats)</option><option value="phase_jsd_nats">Phase-conditional JSD (nats)</option><option value="delta_target_logp">Δ target log p (nats)</option></select></div><canvas id="predictionCurve" data-height="220"></canvas><p class="plot-note">Top-five entries are truncated lists; they cannot reconstruct full distributions or missing probability statistics.</p></div>
+  </section>
+  <section id="geometry" class="tab"><div class="card"><h2>One shared coordinate system</h2><p id="pcaNote" class="plot-note"></p><button id="fitPCA">Project selected + pinned layers</button><canvas id="pca" data-height="420"></canvas><p class="plot-note">Unit-normalized vectors, one shared fit for both contexts and at most two layers. Click a point to select its layer and captured position. No emotion labels or causal conclusions are inferred.</p></div></section>
+  <section id="decoder" class="tab">
+   <div class="plot-controls"><label>Recorded stage<select id="decoderSite"></select></label><label>Subframe<input id="subframe" type="number" min="0" max="3" value="0"></label><label>Channel<input id="decoderChannel" type="number" min="0" value="0"></label><label>Heatmap channel start<input id="decoderChannelStart" type="number" min="0" value="0"></label><label>Time window start<input id="decoderTimeStart" type="number" min="0" placeholder="auto"></label><button id="decoderEarlier">← 80 frames</button><button id="decoderLater">80 frames →</button></div>
+   <div id="decoderNotice" class="notice"></div><div id="codeEntries"></div><div id="decoderCards" class="two-columns"></div>
+  </section>
+ </section>
+ <aside class="inspector"><div class="panel-heading">COMPONENT INSPECTOR</div><h2 id="inspectorTitle">Saved model trace</h2><div id="inspectorBody"></div><div class="inspector-actions"><button id="prevComponent">← Previous</button><button id="nextComponent">Next →</button></div><details><summary>Provenance & capture contract</summary><pre id="provenance"></pre></details><div class="inspector-foot"><b>Interpretation boundary</b><p>Representation differences, output-prediction differences and causal interventions are distinct evidence. This dataset contains observational replay only.</p><p>No distance, JSD, RMS or F0 value establishes empathy, anger or speech quality.</p></div></aside>
+</main>
+<section class="speech-timeline"><div class="timeline-heading"><h2>Recorded speech <span>· linked approximate code-frame time</span></h2><span id="timelinePosition"></span><button id="seekAudio">Seek both recordings</button></div><div class="two-columns"><div><div id="audioLabelA" class="audio-label"></div><audio id="audioA" controls preload="metadata"></audio><canvas id="waveA" data-height="65"></canvas></div><div><div id="audioLabelB" class="audio-label"></div><audio id="audioB" controls preload="metadata"></audio><canvas id="waveB" data-height="65"></canvas></div></div><div id="acousticTable"></div><p class="plot-note">Code-frame seeking is approximate. Different generated histories are not phoneme- or word-aligned; the decoder receives codes, not style instructions.</p></section>
+<div id="tooltip" role="tooltip" hidden></div><script src="/app.js"></script></body></html>

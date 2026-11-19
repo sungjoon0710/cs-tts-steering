@@ -4,6 +4,11 @@ The upstream CAA API stays in `src/steering.py`. Local inspection utilities have
 moved to `src/representation_probe.py`; import them from there rather than
 replacing the CAA module. Both APIs are exercised by CPU tests.
 
+For interactive, CPU-only exploration of registered saved traces, see
+[Model Explorer](MODEL_EXPLORER.md). It keeps prompt conditions and audio histories
+separate, exposes selective exact vectors honestly, and leaves extraction and
+steering APIs unchanged.
+
 |Module|Purpose|
 |---|---|
 |`src.steering`|Existing `SpeechLM`, `extract`, `Steerer`, `generate_batch`; upstream behavior unchanged|

@@ -1,0 +1,584 @@
+:root{
+  --ink:#1b2737;
+  --muted:#65738a;
+  --line:#dde4ec;
+  --bg:#f3f6fa;
+  --a:#1467b8;
+  --b:#bf5c16;
+  --accent:#204f80;
+  --card:#fff}
+  *{
+    box-sizing:border-box}
+    body{
+      margin:0;
+      background:var(--bg);
+      color:var(--ink);
+      font:13px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+      button,input,select{
+        font:inherit}
+        button,select,input{
+          border:1px solid #cdd7e3;
+          border-radius:5px;
+          background:#fff;
+          color:var(--ink);
+          padding:6px 8px}
+          button{
+            cursor:pointer}
+            button:hover{
+              border-color:var(--a);
+              background:#f0f6fc}
+              button:focus-visible,select:focus-visible,input:focus-visible{
+                outline:2px solid var(--a);
+                outline-offset:2px}
+                button.active{
+                  background:#e8f1fc;
+                  border-color:#6e9cc9;
+                  color:#104c80}
+                  button:disabled{
+                    cursor:default;
+                    opacity:.45}
+                    input[type=number]{
+                      width:76px}
+                      select{
+                        max-width:100%}
+                        header{
+                          background:#fff;
+                          border-bottom:1px solid var(--line);
+                          padding:15px 24px;
+                          display:flex;
+                          align-items:center;
+                          justify-content:space-between;
+                          gap:16px}
+                          .brand{
+                            display:flex;
+                            align-items:center;
+                            gap:12px}
+                            .brand-icon{
+                              background:#123958;
+                              color:white;
+                              font-size:22px;
+                              padding:8px;
+                              border-radius:7px}
+                              .brand strong{
+                                font-size:18px;
+                                letter-spacing:-.4px}
+                                .brand strong span{
+                                  font-weight:400;
+                                  color:#637185;
+                                  margin-left:5px}
+                                  .brand small{
+                                    display:block;
+                                    font-size:9px;
+                                    letter-spacing:1.8px;
+                                    color:var(--muted);
+                                    margin-top:5px}
+                                    .header-actions{
+                                      display:flex;
+                                      align-items:center;
+                                      gap:8px}
+                                      .badge{
+                                        font-size:10px;
+                                        font-weight:650;
+                                        letter-spacing:.5px;
+                                        background:#edf3f9;
+                                        border:1px solid #d9e5ef;
+                                        border-radius:4px;
+                                        padding:5px 7px;
+                                        white-space:nowrap}
+                                        .experiment-bar{
+                                          display:flex;
+                                          align-items:end;
+                                          gap:10px;
+                                          flex-wrap:wrap;
+                                          padding:13px 24px;
+                                          background:#fff;
+                                          border-bottom:1px solid var(--line)}
+                                          label{
+                                            display:flex;
+                                            flex-direction:column;
+                                            gap:5px;
+                                            font-size:10px;
+                                            letter-spacing:.4px;
+                                            color:var(--muted)}
+                                            label select{
+                                              font-size:12px;
+                                              letter-spacing:0;
+                                              min-width:110px;
+                                              max-width:210px}
+                                              .condition-a select{
+                                                border-left:3px solid var(--a)}
+                                                .condition-b select{
+                                                  border-left:3px solid var(--b)}
+                                                  .wide{
+                                                    flex-grow:1}
+                                                    .wide select{
+                                                      max-width:100%}
+                                                      #status{
+                                                        padding:9px 24px;
+                                                        font-size:11px;
+                                                        background:#eef3f8;
+                                                        color:#42546a;
+                                                        min-height:34px}
+                                                        #status.error{
+                                                          color:#8a2d20;
+                                                          background:#fff0e9}
+                                                          .workspace{
+                                                            display:grid;
+                                                            grid-template-columns:220px minmax(0,1fr) 275px;
+                                                            min-height:620px;
+                                                            max-width:2100px;
+                                                            margin:auto}
+                                                            .architecture,.inspector{
+                                                              background:#fff;
+                                                              padding:18px 13px;
+                                                              border-right:1px solid var(--line);
+                                                              overflow:auto;
+                                                              max-height:calc(100vh - 270px);
+                                                              position:sticky;
+                                                              top:0}
+                                                              .inspector{
+                                                                border-right:0;
+                                                                border-left:1px solid var(--line);
+                                                                padding:18px}
+                                                                .panel-heading{
+                                                                  font-size:9px;
+                                                                  letter-spacing:1.5px;
+                                                                  color:var(--muted);
+                                                                  font-weight:700;
+                                                                  margin-bottom:18px;
+                                                                  display:flex;
+                                                                  justify-content:space-between}
+                                                                  .component{
+                                                                    width:100%;
+                                                                    text-align:left;
+                                                                    border:0;
+                                                                    background:transparent;
+                                                                    font-size:11px;
+                                                                    padding:8px;
+                                                                    border-radius:5px;
+                                                                    display:block}
+                                                                    .component span{
+                                                                      color:#8693a5;
+                                                                      font-size:10px;
+                                                                      margin-right:6px}
+                                                                      .component.selected{
+                                                                        background:#e8f1fc;
+                                                                        color:#124e84;
+                                                                        font-weight:600}
+                                                                        .section-label{
+                                                                          font-size:9px;
+                                                                          letter-spacing:.8px;
+                                                                          color:#53657b;
+                                                                          font-weight:700;
+                                                                          margin:16px 7px 10px}
+                                                                          .architecture-block{
+                                                                            padding-bottom:5px}
+                                                                            #layerNav{
+                                                                              display:grid;
+                                                                              grid-template-columns:repeat(7,1fr);
+                                                                              gap:4px;
+                                                                              padding:0 5px}
+                                                                              #layerNav button{
+                                                                                font-size:10px;
+                                                                                padding:7px 0}
+                                                                                #layerNav button.selected{
+                                                                                  background:#235e94;
+                                                                                  color:#fff;
+                                                                                  border-color:#235e94}
+                                                                                  #layerNav button.pinned{
+                                                                                    box-shadow:inset 0 -3px #cb8731}
+                                                                                    .subtle,.architecture-note{
+                                                                                      font-size:10px;
+                                                                                      color:var(--muted);
+                                                                                      line-height:1.6;
+                                                                                      padding:0 7px}
+                                                                                      .architecture-note{
+                                                                                        border-top:1px solid var(--line);
+                                                                                        padding-top:14px;
+                                                                                        margin-top:18px}
+                                                                                        .research{
+                                                                                          padding:22px;
+                                                                                          min-width:0}
+                                                                                          .research-heading{
+                                                                                            display:flex;
+                                                                                            align-items:center;
+                                                                                            justify-content:space-between;
+                                                                                            gap:12px}
+                                                                                            .eyebrow{
+                                                                                              font-size:9px;
+                                                                                              font-weight:650;
+                                                                                              letter-spacing:1.2px;
+                                                                                              color:#60758f}
+                                                                                              h1{
+                                                                                                font-size:23px;
+                                                                                                letter-spacing:-.6px;
+                                                                                                font-weight:600;
+                                                                                                margin:7px 0 0}
+                                                                                                h2{
+                                                                                                  font-size:12px;
+                                                                                                  font-weight:600;
+                                                                                                  margin:0 0 11px}
+                                                                                                  .export-actions{
+                                                                                                    display:flex;
+                                                                                                    gap:5px}
+                                                                                                    .export-actions button{
+                                                                                                      font-size:10px}
+                                                                                                      .utterance-text{
+                                                                                                        font-size:12px;
+                                                                                                        color:#576981;
+                                                                                                        border-left:2px solid #b9cde0;
+                                                                                                        padding:2px 0 2px 11px;
+                                                                                                        line-height:1.6}
+                                                                                                        .selection-bar{
+                                                                                                          display:flex;
+                                                                                                          gap:7px;
+                                                                                                          align-items:end;
+                                                                                                          flex-wrap:wrap;
+                                                                                                          margin:17px 0}
+                                                                                                          .selection-bar label{
+                                                                                                            font-size:9px}
+                                                                                                            .selection-bar button{
+                                                                                                              font-size:10px}
+                                                                                                              .selection-bar input{
+                                                                                                                width:60px}
+                                                                                                                #pins{
+                                                                                                                  display:flex;
+                                                                                                                  gap:4px}
+                                                                                                                  #pins button{
+                                                                                                                    background:#fff2df;
+                                                                                                                    border-color:#e4c895}
+                                                                                                                    .tabs{
+                                                                                                                      display:flex;
+                                                                                                                      border-bottom:1px solid #ccd8e5;
+                                                                                                                      gap:4px;
+                                                                                                                      margin:16px 0}
+                                                                                                                      .tabs button{
+                                                                                                                        border:0;
+                                                                                                                        border-radius:0;
+                                                                                                                        background:transparent;
+                                                                                                                        font-size:11px;
+                                                                                                                        padding:10px 9px;
+                                                                                                                        color:#5a6d84}
+                                                                                                                        .tabs button.active{
+                                                                                                                          color:#144e7f;
+                                                                                                                          border-bottom:2px solid #23669d}
+                                                                                                                          .tab{
+                                                                                                                            display:none}
+                                                                                                                            .tab.active{
+                                                                                                                              display:block}
+                                                                                                                              .plot-controls{
+                                                                                                                                display:flex;
+                                                                                                                                align-items:end;
+                                                                                                                                gap:8px;
+                                                                                                                                flex-wrap:wrap;
+                                                                                                                                margin-bottom:13px}
+                                                                                                                                .plot-controls label{
+                                                                                                                                  font-size:9px}
+                                                                                                                                  .plot-controls input{
+                                                                                                                                    font-size:11px;
+                                                                                                                                    width:69px}
+                                                                                                                                    .plot-controls select{
+                                                                                                                                      font-size:11px;
+                                                                                                                                      max-width:180px}
+                                                                                                                                      .plot-controls button{
+                                                                                                                                        font-size:10px}
+                                                                                                                                        .plot-controls .check{
+                                                                                                                                          flex-direction:row;
+                                                                                                                                          align-items:center;
+                                                                                                                                          gap:4px;
+                                                                                                                                          padding-bottom:7px}
+                                                                                                                                          .check input{
+                                                                                                                                            width:auto}
+                                                                                                                                            .card{
+                                                                                                                                              padding:15px;
+                                                                                                                                              background:var(--card);
+                                                                                                                                              border:1px solid var(--line);
+                                                                                                                                              border-radius:7px;
+                                                                                                                                              margin-bottom:12px;
+                                                                                                                                              min-width:0}
+                                                                                                                                              .card-head{
+                                                                                                                                                display:flex;
+                                                                                                                                                justify-content:space-between;
+                                                                                                                                                align-items:center;
+                                                                                                                                                gap:8px}
+                                                                                                                                                .card-head span{
+                                                                                                                                                  font-size:9px;
+                                                                                                                                                  color:var(--muted)}
+                                                                                                                                                  .card-head select{
+                                                                                                                                                    font-size:10px}
+                                                                                                                                                    canvas{
+                                                                                                                                                      display:block;
+                                                                                                                                                      width:100%;
+                                                                                                                                                      height:auto;
+                                                                                                                                                      touch-action:none}
+                                                                                                                                                      .two-columns{
+                                                                                                                                                        display:grid;
+                                                                                                                                                        grid-template-columns:1fr 1fr;
+                                                                                                                                                        gap:12px}
+                                                                                                                                                        .plot-note{
+                                                                                                                                                          font-size:10px;
+                                                                                                                                                          line-height:1.6;
+                                                                                                                                                          color:var(--muted);
+                                                                                                                                                          margin:10px 0 0}
+                                                                                                                                                          .color-legend{
+                                                                                                                                                            display:flex;
+                                                                                                                                                            gap:8px;
+                                                                                                                                                            align-items:center;
+                                                                                                                                                            justify-content:flex-end;
+                                                                                                                                                            font-size:9px;
+                                                                                                                                                            color:var(--muted);
+                                                                                                                                                            margin-top:3px}
+                                                                                                                                                            .color-legend div{
+                                                                                                                                                              width:120px;
+                                                                                                                                                              height:8px;
+                                                                                                                                                              background:linear-gradient(90deg,#edf2f7,#7ca9c9,#154876,#cba84b)}
+                                                                                                                                                              .notice{
+                                                                                                                                                                border:1px solid #d9e4ed;
+                                                                                                                                                                background:#edf4fa;
+                                                                                                                                                                color:#46627b;
+                                                                                                                                                                padding:11px 13px;
+                                                                                                                                                                border-radius:5px;
+                                                                                                                                                                font-size:11px;
+                                                                                                                                                                line-height:1.6;
+                                                                                                                                                                margin:12px 0}
+                                                                                                                                                                .notice.missing{
+                                                                                                                                                                  background:#fff6e9;
+                                                                                                                                                                  border-color:#f0ddbb;
+                                                                                                                                                                  color:#795824}
+                                                                                                                                                                  .metric-grid{
+                                                                                                                                                                    display:grid;
+                                                                                                                                                                    grid-template-columns:repeat(auto-fit,minmax(120px,1fr));
+                                                                                                                                                                    gap:8px;
+                                                                                                                                                                    margin:12px 0}
+                                                                                                                                                                    .metric{
+                                                                                                                                                                      padding:10px 12px;
+                                                                                                                                                                      background:#fff;
+                                                                                                                                                                      border:1px solid var(--line);
+                                                                                                                                                                      border-radius:5px}
+                                                                                                                                                                      .metric strong{
+                                                                                                                                                                        font-size:18px;
+                                                                                                                                                                        display:block;
+                                                                                                                                                                        font-weight:550;
+                                                                                                                                                                        margin-bottom:4px}
+                                                                                                                                                                        .metric small{
+                                                                                                                                                                          font-size:9px;
+                                                                                                                                                                          color:var(--muted)}
+                                                                                                                                                                          .pathway{
+                                                                                                                                                                            display:flex;
+                                                                                                                                                                            gap:5px;
+                                                                                                                                                                            flex-wrap:wrap}
+                                                                                                                                                                            .pathway button{
+                                                                                                                                                                              font-size:10px;
+                                                                                                                                                                              flex:1;
+                                                                                                                                                                              min-width:85px;
+                                                                                                                                                                              line-height:1.5;
+                                                                                                                                                                              padding:9px 5px}
+                                                                                                                                                                              .pathway button small{
+                                                                                                                                                                                display:block;
+                                                                                                                                                                                font-size:8px;
+                                                                                                                                                                                color:var(--muted)}
+                                                                                                                                                                                .pathway .unavailable{
+                                                                                                                                                                                  background:#f5f5f5;
+                                                                                                                                                                                  border-style:dashed;
+                                                                                                                                                                                  color:#7d838c}
+                                                                                                                                                                                  .inspector h2{
+                                                                                                                                                                                    font-size:15px;
+                                                                                                                                                                                    margin-bottom:14px}
+                                                                                                                                                                                    .inspector dl{
+                                                                                                                                                                                      font-size:11px;
+                                                                                                                                                                                      margin:0}
+                                                                                                                                                                                      .inspector dt{
+                                                                                                                                                                                        color:#78869b;
+                                                                                                                                                                                        font-size:9px;
+                                                                                                                                                                                        margin-top:14px;
+                                                                                                                                                                                        letter-spacing:.5px}
+                                                                                                                                                                                        .inspector dd{
+                                                                                                                                                                                          margin:5px 0;
+                                                                                                                                                                                          line-height:1.6;
+                                                                                                                                                                                          overflow-wrap:anywhere}
+                                                                                                                                                                                          .inspector-actions{
+                                                                                                                                                                                            display:flex;
+                                                                                                                                                                                            gap:6px;
+                                                                                                                                                                                            margin-top:17px}
+                                                                                                                                                                                            .inspector-actions button{
+                                                                                                                                                                                              font-size:10px;
+                                                                                                                                                                                              flex:1}
+                                                                                                                                                                                              .inspector-foot{
+                                                                                                                                                                                                font-size:10px;
+                                                                                                                                                                                                color:var(--muted);
+                                                                                                                                                                                                line-height:1.7;
+                                                                                                                                                                                                border-top:1px solid var(--line);
+                                                                                                                                                                                                margin-top:22px;
+                                                                                                                                                                                                padding-top:18px}
+                                                                                                                                                                                                .inspector-foot b{
+                                                                                                                                                                                                  color:#455b72}
+                                                                                                                                                                                                  details{
+                                                                                                                                                                                                    margin-top:20px;
+                                                                                                                                                                                                    font-size:10px;
+                                                                                                                                                                                                    color:#52637b}
+                                                                                                                                                                                                    pre{
+                                                                                                                                                                                                      white-space:pre-wrap;
+                                                                                                                                                                                                      overflow-wrap:anywhere;
+                                                                                                                                                                                                      font:10px ui-monospace,monospace;
+                                                                                                                                                                                                      line-height:1.6;
+                                                                                                                                                                                                      max-height:320px;
+                                                                                                                                                                                                      overflow:auto;
+                                                                                                                                                                                                      background:#f5f7fa;
+                                                                                                                                                                                                      padding:10px}
+                                                                                                                                                                                                      .speech-timeline{
+                                                                                                                                                                                                        border-top:1px solid var(--line);
+                                                                                                                                                                                                        background:#fff;
+                                                                                                                                                                                                        padding:17px 24px 12px;
+                                                                                                                                                                                                        max-width:2100px;
+                                                                                                                                                                                                        margin:auto}
+                                                                                                                                                                                                        .timeline-heading{
+                                                                                                                                                                                                          display:flex;
+                                                                                                                                                                                                          align-items:center;
+                                                                                                                                                                                                          gap:16px;
+                                                                                                                                                                                                          margin-bottom:10px}
+                                                                                                                                                                                                          .timeline-heading h2{
+                                                                                                                                                                                                            margin:0}
+                                                                                                                                                                                                            .timeline-heading h2 span{
+                                                                                                                                                                                                              font-weight:400;
+                                                                                                                                                                                                              color:var(--muted);
+                                                                                                                                                                                                              font-size:10px}
+                                                                                                                                                                                                              .timeline-heading>span{
+                                                                                                                                                                                                                color:#587087;
+                                                                                                                                                                                                                font-size:11px;
+                                                                                                                                                                                                                margin-left:auto}
+                                                                                                                                                                                                                .timeline-heading button{
+                                                                                                                                                                                                                  font-size:10px}
+                                                                                                                                                                                                                  audio{
+                                                                                                                                                                                                                    width:100%;
+                                                                                                                                                                                                                    height:32px;
+                                                                                                                                                                                                                    margin:7px 0}
+                                                                                                                                                                                                                    .audio-label{
+                                                                                                                                                                                                                      font-size:10px;
+                                                                                                                                                                                                                      color:#526880}
+                                                                                                                                                                                                                      table{
+                                                                                                                                                                                                                        border-collapse:collapse;
+                                                                                                                                                                                                                        font-size:10px;
+                                                                                                                                                                                                                        width:100%;
+                                                                                                                                                                                                                        margin-top:7px}
+                                                                                                                                                                                                                        th,td{
+                                                                                                                                                                                                                          text-align:left;
+                                                                                                                                                                                                                          padding:7px 6px;
+                                                                                                                                                                                                                          border-bottom:1px solid #e8edf3;
+                                                                                                                                                                                                                          overflow-wrap:anywhere}
+                                                                                                                                                                                                                          th{
+                                                                                                                                                                                                                            font-weight:500;
+                                                                                                                                                                                                                            color:#6b7b91;
+                                                                                                                                                                                                                            font-size:9px}
+                                                                                                                                                                                                                            #tooltip{
+                                                                                                                                                                                                                              position:fixed;
+                                                                                                                                                                                                                              z-index:10;
+                                                                                                                                                                                                                              pointer-events:none;
+                                                                                                                                                                                                                              background:#132b42;
+                                                                                                                                                                                                                              color:#fff;
+                                                                                                                                                                                                                              padding:9px 12px;
+                                                                                                                                                                                                                              border-radius:5px;
+                                                                                                                                                                                                                              font-size:11px;
+                                                                                                                                                                                                                              line-height:1.6;
+                                                                                                                                                                                                                              box-shadow:0 3px 15px #0003;
+                                                                                                                                                                                                                              white-space:pre-line;
+                                                                                                                                                                                                                              max-width:350px}
+                                                                                                                                                                                                                              #codeEntries{
+                                                                                                                                                                                                                                font-size:10px;
+                                                                                                                                                                                                                                line-height:1.7;
+                                                                                                                                                                                                                                margin-bottom:12px}
+                                                                                                                                                                                                                                .code-chip{
+                                                                                                                                                                                                                                  display:inline-block;
+                                                                                                                                                                                                                                  padding:5px 7px;
+                                                                                                                                                                                                                                  margin:3px;
+                                                                                                                                                                                                                                  background:#eaf0f7;
+                                                                                                                                                                                                                                  border-radius:4px;
+                                                                                                                                                                                                                                  font-family:ui-monospace,monospace}
+                                                                                                                                                                                                                                  .vector-missing{
+                                                                                                                                                                                                                                    padding:35px 15px;
+                                                                                                                                                                                                                                    text-align:center;
+                                                                                                                                                                                                                                    color:#7e6542;
+                                                                                                                                                                                                                                    font-size:12px;
+                                                                                                                                                                                                                                    background:#fff9ef;
+                                                                                                                                                                                                                                    border:1px dashed #d9c49e;
+                                                                                                                                                                                                                                    border-radius:6px}
+                                                                                                                                                                                                                                    .legend-a{
+                                                                                                                                                                                                                                      color:var(--a)}
+                                                                                                                                                                                                                                      .legend-b{
+                                                                                                                                                                                                                                        color:var(--b)}
+                                                                                                                                                                                                                                        [hidden]{
+                                                                                                                                                                                                                                          display:none!important}
+                                                                                                                                                                                                                                          @media(min-width:1650px){
+                                                                                                                                                                                                                                            .workspace{
+                                                                                                                                                                                                                                              grid-template-columns:245px minmax(0,1fr) 315px}
+                                                                                                                                                                                                                                              .research{
+                                                                                                                                                                                                                                                padding:26px}
+                                                                                                                                                                                                                                              }
+                                                                                                                                                                                                                                              @media(max-width:1150px){
+                                                                                                                                                                                                                                                .workspace{
+                                                                                                                                                                                                                                                  grid-template-columns:165px minmax(0,1fr)}
+                                                                                                                                                                                                                                                  .inspector{
+                                                                                                                                                                                                                                                    position:static;
+                                                                                                                                                                                                                                                    max-height:none;
+                                                                                                                                                                                                                                                    grid-column:1/-1;
+                                                                                                                                                                                                                                                    border-top:1px solid var(--line);
+                                                                                                                                                                                                                                                    display:block}
+                                                                                                                                                                                                                                                    .architecture{
+                                                                                                                                                                                                                                                      max-height:850px}
+                                                                                                                                                                                                                                                      .research{
+                                                                                                                                                                                                                                                        padding:15px}
+                                                                                                                                                                                                                                                        .brand strong{
+                                                                                                                                                                                                                                                          font-size:16px}
+                                                                                                                                                                                                                                                          .header-actions .badge{
+                                                                                                                                                                                                                                                            display:none}
+                                                                                                                                                                                                                                                          }
+                                                                                                                                                                                                                                                          @media(max-width:720px){
+                                                                                                                                                                                                                                                            header{
+                                                                                                                                                                                                                                                              padding:12px;
+                                                                                                                                                                                                                                                              flex-wrap:wrap}
+                                                                                                                                                                                                                                                              .experiment-bar{
+                                                                                                                                                                                                                                                                padding:10px;
+                                                                                                                                                                                                                                                                gap:8px}
+                                                                                                                                                                                                                                                                .experiment-bar label{
+                                                                                                                                                                                                                                                                  flex:1 1 120px}
+                                                                                                                                                                                                                                                                  .experiment-bar select{
+                                                                                                                                                                                                                                                                    max-width:100%;
+                                                                                                                                                                                                                                                                    width:100%}
+                                                                                                                                                                                                                                                                    .workspace{
+                                                                                                                                                                                                                                                                      grid-template-columns:1fr}
+                                                                                                                                                                                                                                                                      .architecture{
+                                                                                                                                                                                                                                                                        position:static;
+                                                                                                                                                                                                                                                                        max-height:240px;
+                                                                                                                                                                                                                                                                        border-bottom:1px solid var(--line);
+                                                                                                                                                                                                                                                                        display:flex;
+                                                                                                                                                                                                                                                                        flex-wrap:wrap;
+                                                                                                                                                                                                                                                                        gap:3px;
+                                                                                                                                                                                                                                                                        align-items:start}
+                                                                                                                                                                                                                                                                        .architecture>*{
+                                                                                                                                                                                                                                                                          flex:1 0 135px}
+                                                                                                                                                                                                                                                                          .architecture .panel-heading,.architecture-note{
+                                                                                                                                                                                                                                                                            display:none}
+                                                                                                                                                                                                                                                                            .architecture-block{
+                                                                                                                                                                                                                                                                              min-width:230px}
+                                                                                                                                                                                                                                                                              .architecture .section-label{
+                                                                                                                                                                                                                                                                                margin:5px}
+                                                                                                                                                                                                                                                                                .two-columns{
+                                                                                                                                                                                                                                                                                  grid-template-columns:1fr}
+                                                                                                                                                                                                                                                                                  .research{
+                                                                                                                                                                                                                                                                                    padding:12px}
+                                                                                                                                                                                                                                                                                    .research-heading{
+                                                                                                                                                                                                                                                                                      align-items:start}
+                                                                                                                                                                                                                                                                                      h1{
+                                                                                                                                                                                                                                                                                        font-size:20px}
+                                                                                                                                                                                                                                                                                        .tabs{
+                                                                                                                                                                                                                                                                                          overflow:auto}
+                                                                                                                                                                                                                                                                                          .tabs button{
+                                                                                                                                                                                                                                                                                            white-space:nowrap}
+                                                                                                                                                                                                                                                                                            .timeline-heading{
+                                                                                                                                                                                                                                                                                              flex-wrap:wrap}
+                                                                                                                                                                                                                                                                                              .speech-timeline{
+                                                                                                                                                                                                                                                                                                padding:12px}
+                                                                                                                                                                                                                                                                                                .inspector{
+                                                                                                                                                                                                                                                                                                  padding:15px}
+                                                                                                                                                                                                                                                                                                  .header-actions button{
+                                                                                                                                                                                                                                                                                                    font-size:10px}
+                                                                                                                                                                                                                                                                                                  }
