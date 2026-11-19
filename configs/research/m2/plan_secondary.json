@@ -1,0 +1,23 @@
+{
+  "name": "confirmation",
+  "rules": [
+    {
+      "layer": 5,
+      "site": "attn",
+      "variants": [
+        "native",
+        "random",
+        "reverse"
+      ]
+    },
+    {
+      "layer": 27,
+      "site": "mlp",
+      "variants": [
+        "native",
+        "random",
+        "reverse"
+      ]
+    }
+  ]
+}

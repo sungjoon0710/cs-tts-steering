@@ -1,7 +1,9 @@
-# Research gates hash source and protocol bytes. Preserve LF across checkouts.
+# Frozen source files use LF across checkouts.
 /scripts/*m1*.py text eol=lf
 /scripts/*m2*.py text eol=lf
 /src/causal_patch.py text eol=lf
 /src/generation_trace.py text eol=lf
 /src/mechanism_study.py text eol=lf
-/configs/research/** text eol=lf
+# Frozen JSON artifacts may use CRLF. Preserve their original bytes.
+/configs/research/**/*.json -text whitespace=cr-at-eol
+/configs/research/**/*.csv text eol=lf

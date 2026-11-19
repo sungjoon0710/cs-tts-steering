@@ -1,0 +1,32 @@
+{
+  "name": "development_B",
+  "rules": [
+    {
+      "layer": 11,
+      "site": "attn",
+      "variants": [
+        "native",
+        "random",
+        "reverse"
+      ]
+    },
+    {
+      "layer": 11,
+      "site": "mlp",
+      "variants": [
+        "native",
+        "random",
+        "reverse"
+      ]
+    },
+    {
+      "layer": 27,
+      "site": "mlp",
+      "variants": [
+        "native",
+        "random",
+        "reverse"
+      ]
+    }
+  ]
+}

@@ -18,4 +18,4 @@ Run CPU tests from the repository with the evaluation dependencies and an instal
 python -m pytest -q tests/test_caa.py tests/test_position_steering.py tests/test_representation_probe.py tests/test_representation_geometry.py tests/test_prompt_representations.py tests/test_representation_cli.py tests/test_tts_snapshots.py
 ```
 
-Keep raw recordings, checkpoints, source texts, execution archives and credential state in separately managed storage. Existing research reports sometimes use a source-file SHA256 as execution provenance. Git's LF rules preserve frozen code and protocol bytes on Windows and Linux.
+Keep raw recordings, checkpoints, source texts, execution archives and credential state in separately managed storage. Git attributes preserve LF for the frozen code and disable newline conversion for the archived protocol JSON files, which include original CRLF bytes.

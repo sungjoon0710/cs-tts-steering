@@ -1,0 +1,111 @@
+{
+  "name": "confirmation",
+  "rules": [
+    {
+      "layer": 5,
+      "site": "attn",
+      "variants": [
+        "native",
+        "random",
+        "reverse"
+      ]
+    },
+    {
+      "layer": 5,
+      "site": "resid",
+      "variants": [
+        "native"
+      ]
+    },
+    {
+      "layer": 11,
+      "site": "resid",
+      "variants": [
+        "native"
+      ]
+    },
+    {
+      "layer": 26,
+      "site": "resid",
+      "variants": [
+        "native"
+      ]
+    },
+    {
+      "layer": 27,
+      "site": "resid",
+      "variants": [
+        "native"
+      ]
+    },
+    {
+      "layer": 11,
+      "site": "attn",
+      "variants": [
+        "native",
+        "random",
+        "reverse"
+      ]
+    },
+    {
+      "layer": 11,
+      "site": "mlp",
+      "variants": [
+        "native",
+        "random",
+        "reverse"
+      ]
+    },
+    {
+      "layer": 27,
+      "site": "mlp",
+      "variants": [
+        "native",
+        "random",
+        "reverse"
+      ]
+    },
+    {
+      "layer": 27,
+      "site": "mlp",
+      "phases": [
+        1,
+        2,
+        4,
+        5
+      ],
+      "variants": [
+        "native",
+        "random"
+      ]
+    },
+    {
+      "layer": 5,
+      "site": "attn",
+      "frames": [
+        4
+      ],
+      "phases": [
+        0
+      ],
+      "variants": [
+        "shared",
+        "specific"
+      ]
+    },
+    {
+      "layer": 27,
+      "site": "mlp",
+      "frames": [
+        4
+      ],
+      "phases": [
+        0
+      ],
+      "variants": [
+        "shared",
+        "specific"
+      ]
+    }
+  ]
+}

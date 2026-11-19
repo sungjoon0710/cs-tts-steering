@@ -1,0 +1,48 @@
+{
+  "name": "development_C",
+  "selected_from": "development_decision_AB.json",
+  "rules": [
+    {
+      "layer": 27,
+      "site": "mlp",
+      "phases": [
+        1,
+        2,
+        4,
+        5
+      ],
+      "variants": [
+        "native",
+        "random"
+      ]
+    },
+    {
+      "layer": 5,
+      "site": "attn",
+      "frames": [
+        4
+      ],
+      "phases": [
+        0
+      ],
+      "variants": [
+        "shared",
+        "specific"
+      ]
+    },
+    {
+      "layer": 27,
+      "site": "mlp",
+      "frames": [
+        4
+      ],
+      "phases": [
+        0
+      ],
+      "variants": [
+        "shared",
+        "specific"
+      ]
+    }
+  ]
+}

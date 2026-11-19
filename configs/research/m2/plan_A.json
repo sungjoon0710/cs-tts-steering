@@ -1,0 +1,42 @@
+{
+  "name": "development_A",
+  "rules": [
+    {
+      "layer": 5,
+      "site": "attn",
+      "variants": [
+        "native",
+        "random",
+        "reverse"
+      ]
+    },
+    {
+      "layer": 5,
+      "site": "resid",
+      "variants": [
+        "native"
+      ]
+    },
+    {
+      "layer": 11,
+      "site": "resid",
+      "variants": [
+        "native"
+      ]
+    },
+    {
+      "layer": 26,
+      "site": "resid",
+      "variants": [
+        "native"
+      ]
+    },
+    {
+      "layer": 27,
+      "site": "resid",
+      "variants": [
+        "native"
+      ]
+    }
+  ]
+}

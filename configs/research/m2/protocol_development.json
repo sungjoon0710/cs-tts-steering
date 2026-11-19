@@ -1,0 +1,104 @@
+{
+  "study": "M2 causal localization",
+  "version": 1,
+  "checkpoint": "76e0814f189321efe550011850cd288dae366aad",
+  "codec": "d73ad176a12188fcf4f360ba3bf2c2fbbe8f58ec",
+  "speaker": "Amit",
+  "language": "English",
+  "dtype": "bfloat16",
+  "styles": {
+    "news": "news",
+    "anger": "ANGER",
+    "happy": "happy",
+    "sad": "sad"
+  },
+  "history_seeds": [
+    1234,
+    5678
+  ],
+  "window_frames": 24,
+  "frames": [
+    4,
+    18
+  ],
+  "phases": [
+    0,
+    1,
+    2,
+    4,
+    5
+  ],
+  "prediction_rows": [
+    0,
+    1,
+    27,
+    28,
+    29,
+    30,
+    32,
+    33,
+    125,
+    126,
+    127,
+    128,
+    130,
+    131,
+    167
+  ],
+  "decoding": {
+    "temperature": 0.6,
+    "top_p": 0.9,
+    "top_k": 50,
+    "repetition_penalty": 1.2
+  },
+  "normalization_floor": 1e-06,
+  "floor_policy": "Engineering/development reports absolute values and provisional ratios. Before confirmation freeze max(1e-6,min(0.001,development_positive_code_JSD_5th_percentile/10)).",
+  "minimum_meaningful_normalized_selective_excess": 0.1,
+  "confirmation_target_range": [
+    60,
+    80
+  ],
+  "confirmation_history_subset": 20,
+  "primary_candidate": {
+    "layer": 5,
+    "site": "attn",
+    "phase": 0
+  },
+  "exploratory_candidates": [
+    {
+      "layer": 11,
+      "site": "attn"
+    },
+    {
+      "layer": 11,
+      "site": "mlp"
+    },
+    {
+      "layer": 27,
+      "site": "mlp"
+    }
+  ],
+  "residual_controls": [
+    5,
+    11,
+    26,
+    27
+  ],
+  "primary_endpoint": "Phase-conditional own-minus-competing recovery, divided by own baseline distance, native minus realized-norm-matched random",
+  "normalized_recovery": "(D(recipient,donor)-D(patched,donor))/D(recipient,donor), undefined below frozen floor",
+  "absolute_selectivity": "own absolute recovery minus mean competing-style absolute recovery; common own-target denominator for normalization",
+  "precision": {
+    "identity_max_abs": 0,
+    "earlier_prediction_max_abs": 0,
+    "last_residual_donor_logit_max_abs": 1e-05,
+    "norm_match_relative": 0.01
+  },
+  "controls": "No hook, self-identity, alpha zero, negative-add engineering, reverse recipient/donor, matched random, layer27 full residual donor-logit positive control",
+  "expected_phase_mass_boundary": 0.99,
+  "total_stop_probability_boundary": 0.01,
+  "missingness": "No replacement. Failed/short reference histories remain in requested denominators. Technical/infinite/cache/identity failures halt a bounded job.",
+  "m1_cohort_sha256": "0a8bb167453aa1f9994a6a312c133a2f2878857df5b90def58448a4d3efc285d",
+  "m1_protocol_sha256": "14ba3d0c49eabed39f82970f0f629395a7b42e3cb07c455f35ddca5e461eb645",
+  "m1_basis_sha256": "54708ceecaf17a31027d2bebcfac4d576007a6b12ed7f10fb4008df3d3dd5e08",
+  "constraints": "No decoder, WAVs, training, package changes, M1 modifications or Git publishing."
+}
