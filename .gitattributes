@@ -1,6 +1,7 @@
 # Frozen source files use LF across checkouts.
 /scripts/*m1*.py text eol=lf
 /scripts/*m2*.py text eol=lf
+/scripts/m3/*.py text eol=lf
 /src/causal_patch.py text eol=lf
 /src/generation_trace.py text eol=lf
 /src/mechanism_study.py text eol=lf

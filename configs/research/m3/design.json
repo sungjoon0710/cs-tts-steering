@@ -1,0 +1,17 @@
+{
+  "stage": "exploratory development, fixed before running",
+  "calibration": ["d005","d006","d007","d008","d009","d010","d011","d012","d013","d014","d015","d016"],
+  "assessment": ["d017","d018","d019","d020","d021","d022","d023","d024","d025","d026","d027","d028"],
+  "prediction_rows": [28,30,126],
+  "history": 0,
+  "recipient": "news",
+  "donors": ["anger","happy","sad"],
+  "normalization_floor_nats": 0.000001,
+  "baseline_jsd_tolerance_nats": 0.00002,
+  "identity_and_donor_logit_tolerance": 0,
+  "controller_strength": 1,
+  "control_seed": 3118,
+  "source_release": "facb330e91a3c460",
+  "checkpoint": "76e0814f189321efe550011850cd288dae366aad",
+  "codec": "d73ad176a12188fcf4f360ba3bf2c2fbbe8f58ec"
+}

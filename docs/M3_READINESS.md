@@ -10,4 +10,14 @@ Start from M2's confirmed native layer-27 MLP effect and the divergent own-targe
 | Can control work across contexts without donor activations? | Development/confirmation separation, fitted basis utilities and M2 endpoints | Calibrate sign, norm and timing on development contexts. Freeze the method and require positive own-target recovery and selectivity on untouched texts and histories. |
 | What changes in speech? | Indic-Speak wrapper, token callback, SNAC/Vocos tracing and audio evaluation utilities | Generate valid code sequences under a separately approved design. Verify stopping, content and speaker controls before acoustic and blinded perceptual evaluation. |
 
-The first proposed experiment compares MLP input and output interventions and the final head readout. It can distinguish a contribution from the MLP transformation from direct access to output-relevant coordinates. Individual-head, path and generation experiments require their own engineering controls and frozen hypotheses.
+## Fixed-history development runs
+
+`scripts/m3/run_mechanism.py` compares late MLP input/output swaps, the residual bypass, and the final readout using fresh uncached replays. It checks the two native BF16 residual additions and exact agreement for the unmodified and joint-donor controls. `scripts/m3/run_source_paths.py` replaces the donor's K/V projection outputs at the changed style slot, before RoPE, across layer bands. It checks exact identity and earlier-position invariance and can clamp the News MLP output at the scored rows of layer 27.
+
+`configs/research/m3/design.json` records the development split and model, codec, and M2 source revision. The runners take the original M2 source release, private M2 run root, model configuration, and checkpoint paths explicitly. Use an unused output directory. The saved six-text development comparison recovered about 89% of the phase-conditional donor difference with an unrestricted layer 0–8 K/V swap. It addresses next-code probabilities under a forced history. The audible effect and downstream route require separate evidence.
+
+```powershell
+python scripts/m3/run_mechanism.py --help
+python scripts/m3/run_source_paths.py --help
+python scripts/m3/summarize_mechanism.py SAVED_ASSESSMENT NEW_SUMMARY
+```
