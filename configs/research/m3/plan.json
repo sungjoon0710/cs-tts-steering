@@ -1,0 +1,13 @@
+{
+  "documents": ["d005", "d006", "d007", "d008", "d009", "d010"],
+  "styles": {"news": "news", "anger": "ANGER", "happy": "happy", "sad": "sad", "default": "", "neutral_candidate": "neutral"},
+  "layers": [0, 1, 2, 3, 4, 5, 6, 7, 8],
+  "score_rows": [28, 30, 126],
+  "observation_rows": [0, 28, 30, 126],
+  "history_index": 0,
+  "ratio_floor_nats": 0.001,
+  "random_seed": 191123,
+  "memory_limit_gib": 8,
+  "smoke_timeout_seconds": 120,
+  "assessment_timeout_seconds": 190
+}

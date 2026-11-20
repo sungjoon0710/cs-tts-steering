@@ -21,3 +21,15 @@ python scripts/m3/run_mechanism.py --help
 python scripts/m3/run_source_paths.py --help
 python scripts/m3/summarize_mechanism.py SAVED_ASSESSMENT NEW_SUMMARY
 ```
+
+## Query-scoped attention
+
+`scripts/m3/pathway_experiment.py` runs native scaled dot-product attention with original K/V and with donor K/V at the matched style slot after RoPE. It uses the donor attention output only for the chosen query rows before output projection. The experiment checks identity, exact agreement with an unrestricted native projection swap, earlier-position invariance, and realized random-control norms. The frozen `configs/research/m3/plan.json` records the six development texts, layers 0–8 and scored rows. Pass it with `--plan` and use `--limit 1` to run the smoke test before the six-text run. Set `--delimiter-focus` for the exploratory split.
+
+The two query positions immediately after the style word recovered 84% of the phase-conditional donor difference on the same six texts. Recovery fell to 42% with News MLP outputs held fixed at the scored layer-27 rows. This localizes admission of style-slot information under one prompt format and leaves its downstream route unresolved. Observational comparisons involving Default align the same prediction row across prompts, since Default omits four style-block tokens.
+
+```powershell
+python scripts/m3/pathway_experiment.py --help
+python scripts/m3/summarize_pathways.py SAVED_PRIMARY NEW_PRIMARY_SUMMARY
+python scripts/m3/summarize_delimiters.py SAVED_PRIMARY SAVED_FOLLOWUP NEW_DELIMITER_SUMMARY
+```
